@@ -3,6 +3,8 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ConfigModule } from '@nestjs/config';
+import { envValidationSchema } from './config/validation/env.validation';
 
 @Module({
   imports: [
@@ -15,8 +17,14 @@ import { TypeOrmModule } from '@nestjs/typeorm';
       logging: true,
       dropSchema: true,
     }),
+    ConfigModule.forRoot({
+      envFilePath: [`${__dirname}/config/env/.${process.env.NODE_ENV}.env`],
+      isGlobal: true,
+      cache: true,
+      validationSchema: envValidationSchema,
+    }),
   ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule { }
