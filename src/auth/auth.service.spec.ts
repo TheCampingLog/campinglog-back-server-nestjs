@@ -4,6 +4,9 @@ import { Repository } from 'typeorm';
 import { Member } from './entities/member.entity';
 import { TypeOrmModule, getRepositoryToken } from '@nestjs/typeorm';
 import { RequestAddMemeberDto } from './dto/request/request-add-member.dto';
+import { Board } from '../board/entities/board.entity';
+import { BoardLike } from '../board/entities/board-like.entity';
+import { Comment } from '../board/entities/comment.entity';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -16,7 +19,7 @@ describe('AuthService', () => {
         TypeOrmModule.forRoot({
           type: 'sqlite',
           database: ':memory:', // 메모리 DB 사용 (테스트 후 자동 삭제)
-          entities: [Member],
+          entities: [Member, Board, Comment, BoardLike],
           synchronize: true, // 테스트용으로 자동 스키마 생성
           dropSchema: true, // 테스트 시작 시 스키마 초기화
         }),

@@ -3,8 +3,12 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  OneToMany,
   PrimaryColumn,
 } from 'typeorm';
+import { Board } from '../../board/entities/board.entity';
+import { BoardLike } from '../../board/entities/board-like.entity';
+import { Comment } from '../../board/entities/comment.entity';
 
 export enum Role {
   USER = 'USER',
@@ -52,6 +56,24 @@ export class Member {
 
   @Column({ name: 'oauth', nullable: false })
   oauth?: boolean;
+
+  @OneToMany(() => Board, (board) => board.member, {
+    cascade: true,
+    orphanedRowAction: 'delete',
+  })
+  boards: Board[];
+
+  @OneToMany(() => Comment, (comment) => comment.member, {
+    cascade: true,
+    orphanedRowAction: 'delete',
+  })
+  comments: Comment[];
+
+  @OneToMany(() => BoardLike, (boardLike) => boardLike.member, {
+    cascade: true,
+    orphanedRowAction: 'delete',
+  })
+  board_like: BoardLike[];
 
   @BeforeInsert()
   setDefaults?(): void {
