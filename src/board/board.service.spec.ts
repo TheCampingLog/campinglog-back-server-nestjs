@@ -12,8 +12,6 @@ describe('BoardService', () => {
   let service: BoardService;
   let boardRepository: Repository<Board>;
   let memberRepository: Repository<Member>;
-  let commentRepository: Repository<Comment>;
-  let boardLikeRepository: Repository<BoardLike>;
   let module: TestingModule | null = null;
 
   beforeAll(async () => {

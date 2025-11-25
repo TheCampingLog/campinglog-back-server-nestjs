@@ -5,10 +5,12 @@ import { AuthModule } from './auth/auth.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
 import { envValidationSchema } from './config/validation/env.validation';
+import { BoardModule } from './board/board.module';
 
 @Module({
   imports: [
     AuthModule,
+    BoardModule,
     TypeOrmModule.forRoot({
       type: 'sqlite',
       database: ':memory:',
@@ -27,4 +29,4 @@ import { envValidationSchema } from './config/validation/env.validation';
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule { }
+export class AppModule {}

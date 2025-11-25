@@ -7,7 +7,11 @@ export class BoardController {
   constructor(private readonly boardService: BoardService) {}
 
   @Post()
-  create(@Body() requestAddBoardDto: RequestAddBoardDto) {
-    return this.boardService.addBoard(requestAddBoardDto);
+  async create(@Body() requestAddBoardDto: RequestAddBoardDto) {
+    const board = await this.boardService.addBoard(requestAddBoardDto);
+    return {
+      message: '게시글이 등록되었습니다.',
+      boardId: board.boardId,
+    };
   }
 }
