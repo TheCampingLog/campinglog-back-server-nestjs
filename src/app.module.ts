@@ -5,9 +5,13 @@ import { AuthModule } from './auth/auth.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
 import { envValidationSchema } from './config/validation/env.validation';
+import { CampinfoModule } from './campinfo/campinfo.module';
+import { HttpConfigModule } from './config/http-config.module';
 
 @Module({
   imports: [
+    HttpConfigModule,
+    CampinfoModule,
     AuthModule,
     TypeOrmModule.forRoot({
       type: 'sqlite',
@@ -15,16 +19,16 @@ import { envValidationSchema } from './config/validation/env.validation';
       autoLoadEntities: true,
       synchronize: true,
       logging: true,
-      dropSchema: true,
+      dropSchema: true
     }),
     ConfigModule.forRoot({
       envFilePath: [`${__dirname}/config/env/.${process.env.NODE_ENV}.env`],
       isGlobal: true,
       cache: true,
-      validationSchema: envValidationSchema,
-    }),
+      validationSchema: envValidationSchema
+    })
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService]
 })
-export class AppModule { }
+export class AppModule {}
