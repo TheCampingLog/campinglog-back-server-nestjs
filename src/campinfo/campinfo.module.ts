@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { CampinfoService } from './campinfo.service';
 import { CampinfoController } from './campinfo.controller';
-import { HttpConfigModule } from 'src/config/http-config.module';
+import { HttpConfigModule } from '../config/http-config.module';
 
 @Module({
   imports: [HttpConfigModule],
