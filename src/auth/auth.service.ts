@@ -11,7 +11,7 @@ export class AuthService {
   ) {}
 
   async create(requestAddMemberDto: RequestAddMemeberDto) {
-    const memberData: Member = {
+    const memberData: Partial<Member> = {
       email: requestAddMemberDto.email,
       password: requestAddMemberDto.password,
       name: requestAddMemberDto.name,
