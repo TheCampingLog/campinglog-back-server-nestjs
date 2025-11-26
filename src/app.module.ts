@@ -19,16 +19,16 @@ import { HttpConfigModule } from './config/http-config.module';
       autoLoadEntities: true,
       synchronize: true,
       logging: true,
-      dropSchema: true
+      dropSchema: true,
     }),
     ConfigModule.forRoot({
       envFilePath: [`${__dirname}/config/env/.${process.env.NODE_ENV}.env`],
       isGlobal: true,
       cache: true,
-      validationSchema: envValidationSchema
-    })
+      validationSchema: envValidationSchema,
+    }),
   ],
   controllers: [AppController],
-  providers: [AppService]
+  providers: [AppService],
 })
 export class AppModule {}

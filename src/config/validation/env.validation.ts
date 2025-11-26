@@ -5,5 +5,5 @@ export const envValidationSchema = Joi.object({
   NODE_ENV: Joi.string().valid('dev', 'prod').required(),
   PORT: Joi.number(),
   CAMP_KEY: Joi.string().required(),
-  BASE_URL: Joi.string().required()
+  BASE_URL: Joi.string().required(),
 });

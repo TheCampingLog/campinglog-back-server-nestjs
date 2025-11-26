@@ -61,7 +61,7 @@ export class CampinfoService {
   private readonly serviceKey: string;
   constructor(
     private readonly httpService: HttpService,
-    private readonly config: ConfigService
+    private readonly config: ConfigService,
   ) {
     this.serviceKey = this.config.get<string>('CAMP_KEY') ?? '';
     if (!this.serviceKey) throw new Error('환경변수 CAMP_KEY MISSING 에러');
@@ -69,7 +69,7 @@ export class CampinfoService {
 
   async getCampListLatest(
     pageNo: number,
-    size: number
+    size: number,
   ): Promise<ResponseGetCampWrapper<ResponseGetCampLatestList>> {
     try {
       const params = {
@@ -78,7 +78,7 @@ export class CampinfoService {
         MobileApp: 'CampingLog',
         _type: 'json',
         pageNo,
-        numOfRows: size
+        numOfRows: size,
       };
 
       const response: AxiosResponse<CampingApiResponse> =
@@ -100,7 +100,7 @@ export class CampinfoService {
         totalPage,
         hasNext: pageNo < totalPage,
         page: pageNo,
-        size
+        size,
       };
       return result;
     } catch (e) {
@@ -119,12 +119,12 @@ export class CampinfoService {
       if (Array.isArray(items)) {
         items.map((item) =>
           result.push(
-            plainToInstance(type, item, { excludeExtraneousValues: true })
-          )
+            plainToInstance(type, item, { excludeExtraneousValues: true }),
+          ),
         );
       } else if (typeof items === 'object') {
         result.push(
-          plainToInstance(type, items, { excludeExtraneousValues: true })
+          plainToInstance(type, items, { excludeExtraneousValues: true }),
         );
       }
       return result;

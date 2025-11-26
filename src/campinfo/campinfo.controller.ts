@@ -15,7 +15,7 @@ export class CampinfoController {
   @Get('/list')
   getCampListLatest(
     @Query('pageNo') pageNo = 1,
-    @Query('size') size = 4
+    @Query('size') size = 4,
   ): Promise<ResponseGetCampWrapper<ResponseGetCampLatestList>> {
     return this.campinfoService.getCampListLatest(pageNo, size);
   }

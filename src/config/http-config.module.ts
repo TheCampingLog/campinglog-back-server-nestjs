@@ -10,11 +10,11 @@ import { ConfigService } from '@nestjs/config';
         baseURL: config.get<string>('BASE_URL'),
         timeout: 6000,
         headers: {
-          Accept: 'application/json'
-        }
-      })
-    })
+          Accept: 'application/json',
+        },
+      }),
+    }),
   ],
-  exports: [HttpModule]
+  exports: [HttpModule],
 })
 export class HttpConfigModule {}

@@ -6,6 +6,6 @@ import { HttpConfigModule } from 'src/config/http-config.module';
 @Module({
   imports: [HttpConfigModule],
   controllers: [CampinfoController],
-  providers: [CampinfoService]
+  providers: [CampinfoService],
 })
 export class CampinfoModule {}

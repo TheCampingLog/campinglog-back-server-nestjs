@@ -21,10 +21,10 @@ describe('CampinfoService', () => {
         HttpConfigModule,
         ConfigModule.forRoot({
           isGlobal: true,
-          envFilePath: 'src/config/env/.dev.env'
-        })
+          envFilePath: 'src/config/env/.dev.env',
+        }),
       ],
-      providers: [CampinfoService]
+      providers: [CampinfoService],
     }).compile();
 
     service = module.get<CampinfoService>(CampinfoService);
