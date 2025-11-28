@@ -7,6 +7,7 @@ import { Comment } from './entities/comment.entity';
 import { BoardLike } from './entities/board-like.entity';
 import { TypeOrmModule, getRepositoryToken } from '@nestjs/typeorm';
 import { RequestAddBoardDto } from './dto/request-add-board.dto';
+import { RequestSetBoardDto } from './dto/request-set-board.dto';
 
 describe('BoardService', () => {
   let service: BoardService;
@@ -76,5 +77,51 @@ describe('BoardService', () => {
     expect(savedBoard.boardId).toBeDefined();
     expect(savedBoard.title).toBe(dto.title);
     expect(savedBoard.member.email).toBe(dto.email);
+  });
+  it('게시글 수정 테스트', async () => {
+    // given: 회원 + 초기 게시글 저장
+    const member = memberRepository.create({
+      email: 'update@example.com',
+      password: 'password123',
+      name: '수정유저',
+      nickname: 'updater',
+      birthday: new Date('1995-05-05'),
+      phoneNumber: '010-9999-8888',
+    });
+    await memberRepository.save(member);
+
+    let board = boardRepository.create({
+      title: '기존 제목',
+      content: '기존 내용',
+      categoryName: 'FREE',
+      boardImage: 'before-image',
+      member: member,
+    });
+    board = await boardRepository.save(board);
+
+    const dto: RequestSetBoardDto = {
+      boardId: board.boardId, // 수정 대상
+      title: '수정된 제목',
+      content: '수정된 내용',
+      categoryName: 'NOTICE',
+      boardImage: 'after-image',
+      email: member.email, // 본인 글
+    };
+
+    // when
+    await service.setBoard(dto);
+
+    // then: DB에서 다시 조회해서 값이 바뀌었는지 확인
+    const updated = await boardRepository.findOne({
+      where: { id: board.id },
+      relations: ['member'],
+    });
+
+    expect(updated).toBeDefined();
+    expect(updated!.title).toBe(dto.title);
+    expect(updated!.content).toBe(dto.content);
+    expect(updated!.categoryName).toBe(dto.categoryName);
+    expect(updated!.boardImage).toBe(dto.boardImage);
+    expect(updated!.member.email).toBe(member.email);
   });
 });
