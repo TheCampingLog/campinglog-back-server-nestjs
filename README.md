@@ -1,98 +1,107 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# CampingLog-nextJs
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+캠핑 정보와 캠핑장 리뷰
+<br>
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## 💻 개발 환경
 
-## Description
+### 🎨 BACKEND
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=black)
+![NestJs](https://img.shields.io/badge/NestJS-FF282D?style=flat-square&Node-js&logo=nest.js&logoColor=black)![버전](https://img.shields.io/badge/11.0.10-555555?style=flat-square)
 
-## Project setup
+### 🛠️ 개발 도구
 
-```bash
-$ npm install
-```
+![IntelliJ](https://img.shields.io/badge/VScode-147EFB?style=flat-square)
+![NodeJS](https://img.shields.io/badge/NodeJS-5FA04E?style=flat-square&Node-js&logo=Node.js&logoColor=black)![버전](https://img.shields.io/badge/22.16.0-555555?style=flat-square)
+![MariaDB](https://img.shields.io/badge/MariaDB-003545?style=flat-square&logo=mariadb)![버전](https://img.shields.io/badge/10.6.22-555555?style=flat-square)
+![SqlLite](https://img.shields.io/badge/SQLite-003B57?style=flat-square&logo=sqlite&logoColor=white)
+![Postman](https://img.shields.io/badge/Postman-FF6C37?style=flat-square&logo=postman&logoColor=white)
+![Jest](https://img.shields.io/badge/Jest-C21325?style=flat-square&logo=jest&logoColor=white)
 
-## Compile and run the project
+### 🤝 협업 환경
 
-```bash
-# development
-$ npm run start
+![Jira](https://img.shields.io/badge/Jira-0052CC?style=flat-square&logo=jira&logoColor=white)
+![Confluence](https://img.shields.io/badge/Confluence-172B4D?style=flat-square&logo=confluence&logoColor=white)
+![Google Sheets](https://img.shields.io/badge/Google_Sheets-34A853?style=flat-square&logo=googlesheets&logoColor=white)
+![draw.io](https://img.shields.io/badge/draw.io-F08705?style=flat-square)
+![slack](https://img.shields.io/badge/Slack-69D3A7?style=flat-square)
+![Figma](https://img.shields.io/badge/Figma-F24E1E?style=flat-square&logo=figma&logoColor=white)
+![Git](https://img.shields.io/badge/Git-F05032?style=flat-square&logo=git&logoColor=white)
+![GitHub](https://img.shields.io/badge/GitHub-181717?style=flat-square&logo=github&logoColor=white)
 
-# watch mode
-$ npm run start:dev
+### 📦 운영 환경
 
-# production mode
-$ npm run start:prod
-```
+![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat-square&logo=Docker&logoColor=white)
+![Jenkins](https://img.shields.io/badge/Jenkins-D24939?style=flat-square&logo=Jenkins&logoColor=white)
+![Ubuntu](https://img.shields.io/badge/Ubuntu-E95420?style=flat-square&logo=ubuntu&logoColor=white)
+![Nginx](https://img.shields.io/badge/Nginx-009639?style=flat-square&logo=nginx&logoColor=white)
 
-## Run tests
+<br/>
+
+## 노드 모듈 설치
 
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+npm install
 ```
 
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+## 개발 서버 시작
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+npm run start:dev
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+## 운영환경 서버
 
-## Resources
+```bash
+npm run build
+npm run start:prod
+```
 
-Check out a few resources that may come in handy when working with NestJS:
+## 커밋 타입
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+| 타입       | 설명                                     | 예시                                                |
+| ---------- | ---------------------------------------- | --------------------------------------------------- |
+| `feat`     | 새로운 기능 추가                         | `feat: add user registration form`                  |
+| `fix`      | 버그 수정                                | `fix: resolve crash on login page`                  |
+| `docs`     | 문서 수정 (README 등)                    | `docs: update README with setup instructions`       |
+| `style`    | 코드 포맷팅 (기능 변화 없음)             | `style: reformat code with Prettier`                |
+| `refactor` | 코드 리팩토링 (기능 변화 없음)           | `refactor: simplify conditional logic in auth flow` |
+| `perf`     | 성능 개선                                | `perf: optimize image loading time on homepage`     |
+| `test`     | 테스트 코드 추가/수정                    | `test: add unit tests for utils.js`                 |
+| `build`    | 빌드 시스템 관련 변경 (예: 의존성, 도구) | `build: update dependencies to latest versions`     |
+| `chore`    | 기타 변경사항 (빌드 제외 설정 등)        | `chore: update .gitignore to exclude .env files`    |
 
-## Support
+<br>
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+## 브랜치 전략
 
-## Stay in touch
+- 현재 프로젝트의 경우 main과 feature 브랜치만 사용
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+| 브랜치       | 설명                                                            |
+| ------------ | --------------------------------------------------------------- |
+| main         | 제품으로 출시할 수 있는 최종 버전의 코드가 있는 브랜치 (배포용) |
+| develop      | 다음 출시 버전을 개발하는 브랜치 (기능 통합 및 테스트용)        |
+| Jira 업무 ID | 새로운 기능 개발을 위한 브랜치 (보통 develop에서 분기)          |
+| hotfix       | main에서 분기하여 긴급하게 수정하는 브랜치 (배포 중 버그 등)    |
 
-## License
+<br>
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+## add와 implemnt의 차이점
+
+| 항목      | `add`                                      | `implement`                               |
+| --------- | ------------------------------------------ | ----------------------------------------- |
+| 의미      | "새로 추가했다"                            | "구현했다" 또는 "작동하도록 만들었다"     |
+| 초점      | 무엇을 추가했는가에 초점                   | 기능이나 로직을 구현한 것에 초점          |
+| 사용 시점 | 파일, 폴더, 버튼, 설정 등 물리적 요소 추가 | 함수, 알고리즘, 로직, 동작 기능 구현      |
+| 예시 상황 | 새로운 라우터 파일 추가                    | 로그인 기능의 로직을 실제로 작동하게 구현 |
+
+<br>
+
+## modify와 fix와 correct의 차이점
+
+| 단어      | 의미                   | 커밋 타입과의 관계           | 주로 쓰이는 상황                   |
+| --------- | ---------------------- | ---------------------------- | ---------------------------------- |
+| `modify`  | 기존 코드를 변경       | 보통 `chore` 또는 `refactor` | 기능에 변화 없이 코드 수정할 때    |
+| `fix`     | 버그 또는 문제를 수정  | `fix` (표준 커밋 타입)       | 오작동하는 기능이나 버그를 고칠 때 |
+| `correct` | 잘못된 부분을 바로잡음 | `fix`나 `chore`로 처리 가능  | 문법 오류, 오타, 논리 실수 등 정정 |
