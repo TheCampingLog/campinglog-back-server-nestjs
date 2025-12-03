@@ -5,6 +5,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Board } from './entities/board.entity';
 import { Repository } from 'typeorm';
 import { Member } from '../auth/entities/member.entity';
+import { BoardNotFoundException } from './exceptions/board-not-found.exception';
+import { NotYourBoardException } from './exceptions/not-your-board.exception';
 
 @Injectable()
 export class BoardService {
@@ -33,7 +35,7 @@ export class BoardService {
     });
 
     if (!board) {
-      throw new NotFoundException('게시글을 찾을 수 없습니다.');
+      throw new BoardNotFoundException('게시글을 찾을 수 없습니다.');
     }
 
     return board;
@@ -55,25 +57,17 @@ export class BoardService {
     return this.boardRepository.save(board);
   }
   async setBoard(dto: RequestSetBoardDto): Promise<void> {
-    if (!dto.boardId || dto.boardId.trim() === '') {
-      throw new NotFoundException('boardId는 필수입니다.');
-    }
-    const board = await this.getBoardOrThrow(dto.boardId);
+    const board = await this.getBoardOrThrow(dto.boardId!);
 
     if (dto.email && board.member.email !== dto.email) {
-      throw new NotFoundException('본인의 게시글만 수정할 수 있습니다.');
+      throw new NotYourBoardException('본인의 게시글만 수정할 수 있습니다.');
     }
 
-    if (dto.title !== null && dto.title !== undefined) {
-      board.title = dto.title;
-    }
-    if (dto.content !== null && dto.content !== undefined) {
-      board.content = dto.content;
-    }
-    if (dto.categoryName !== null && dto.categoryName !== undefined) {
-      board.categoryName = dto.categoryName;
-    }
-    if (dto.boardImage !== null && dto.boardImage !== undefined) {
+    board.title = dto.title;
+    board.content = dto.content;
+    board.categoryName = dto.categoryName;
+
+    if (dto.boardImage !== undefined) {
       board.boardImage = dto.boardImage;
     }
 

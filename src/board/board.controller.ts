@@ -1,9 +1,11 @@
-import { Controller, Post, Body, Put, Param } from '@nestjs/common';
+import { Controller, Post, Body, Put, Param, UseFilters } from '@nestjs/common';
 import { BoardService } from './board.service';
 import { RequestAddBoardDto } from './dto/request-add-board.dto';
 import { RequestSetBoardDto } from './dto/request-set-board.dto';
+import { BoardExceptionFilter } from './filters/board-exception.filter';
 
 @Controller('api/boards')
+@UseFilters(BoardExceptionFilter)
 export class BoardController {
   constructor(private readonly boardService: BoardService) {}
 
