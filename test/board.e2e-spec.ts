@@ -122,6 +122,15 @@ describe('AppController (e2e)', () => {
       });
   });
 
+  it('/api/boards/rank (GET) success', async () => {
+    // 1) 회원 생성
+    const testUser: RequestAddMemeberDto = {
+      email: 'ranktest@example.com',
+      password: 'test1234',
+      name: 'ranker',
+      nickname: 'rankNick',
+      birthday: '2000-06-21',
+      phoneNumber: '010-7777-8888',
   it('/api/boards/:boardId (DELETE) success', async () => {
     // 1) 회원 생성
     const testUser: RequestAddMemeberDto = {
@@ -138,6 +147,74 @@ describe('AppController (e2e)', () => {
       .send(testUser)
       .expect(201);
 
+    // 2) 여러 게시글 생성
+    const board1 = {
+      title: '인기 게시글 1',
+      content: '내용1',
+      categoryName: 'FREE',
+      email: testUser.email,
+    };
+
+    const board2 = {
+      title: '인기 게시글 2',
+      content: '내용2',
+      categoryName: 'FREE',
+      email: testUser.email,
+    };
+
+    await request(app.getHttpServer()).post('/api/boards').send(board1);
+    await request(app.getHttpServer()).post('/api/boards').send(board2);
+
+    // 3) GET /api/boards/rank?limit=2 호출
+    return request(app.getHttpServer())
+      .get('/api/boards/rank?limit=2')
+      .expect(200)
+      .expect((res) => {
+        const body = res.body as Array<{
+          boardId: string;
+          title: string;
+          nickname: string;
+          rank: number;
+          viewCount: number;
+          boardImage: string | null;
+        }>;
+
+        expect(Array.isArray(body)).toBe(true);
+        expect(body.length).toBeLessThanOrEqual(2);
+
+        if (body.length > 0) {
+          expect(body[0]).toHaveProperty('boardId');
+          expect(body[0]).toHaveProperty('title');
+          expect(body[0]).toHaveProperty('nickname');
+          expect(body[0]).toHaveProperty('rank');
+          expect(body[0]).toHaveProperty('viewCount');
+          expect(body[0]).toHaveProperty('boardImage');
+        }
+      });
+  });
+
+  it('/api/boards/rank (GET) default limit', async () => {
+    // limit 파라미터 없이 호출하면 기본값 3 적용
+    return request(app.getHttpServer())
+      .get('/api/boards/rank')
+      .expect(200)
+      .expect((res) => {
+        const body = res.body as unknown[];
+        expect(Array.isArray(body)).toBe(true);
+        expect(body.length).toBeLessThanOrEqual(3);
+      });
+  });
+
+  it('/api/boards/rank (GET) invalid limit', async () => {
+    // limit가 1 미만이면 400 에러
+    return request(app.getHttpServer())
+      .get('/api/boards/rank?limit=0')
+      .expect(400)
+      .expect((res) => {
+        const body = res.body as { error: string; message: string };
+        expect(body).toHaveProperty('error');
+        expect(body.message).toContain('limit는 1 이상이어야 합니다.');
+      });
     // 2) 게시글 생성
     const createBoardDto = {
       title: '삭제할 제목',
