@@ -1,8 +1,18 @@
-import { Controller, Post, Body, Put, Param, UseFilters } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Put,
+  Param,
+  UseFilters,
+  Get,
+  Query,
+} from '@nestjs/common';
 import { BoardService } from './board.service';
 import { RequestAddBoardDto } from './dto/request-add-board.dto';
 import { RequestSetBoardDto } from './dto/request-set-board.dto';
 import { BoardExceptionFilter } from './filters/board-exception.filter';
+import { ResponseGetBoardRankDto } from './dto/response-get-board-rank.dto';
 
 @Controller('api/boards')
 @UseFilters(BoardExceptionFilter)
@@ -24,5 +34,12 @@ export class BoardController {
   ) {
     await this.boardService.setBoard({ ...dto, boardId });
     return { message: '게시글이 수정되었습니다.' };
+  }
+
+  @Get('rank')
+  async getBoardRank(
+    @Query('limit') limit: number = 3,
+  ): Promise<ResponseGetBoardRankDto[]> {
+    return this.boardService.getBoardRank(limit);
   }
 }
