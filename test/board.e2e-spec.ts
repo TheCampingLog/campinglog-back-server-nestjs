@@ -131,6 +131,15 @@ describe('AppController (e2e)', () => {
       nickname: 'rankNick',
       birthday: '2000-06-21',
       phoneNumber: '010-7777-8888',
+  it('/api/boards/:boardId (DELETE) success', async () => {
+    // 1) 회원 생성
+    const testUser: RequestAddMemeberDto = {
+      email: 'boarddelete@example.com',
+      password: 'test1234',
+      name: 'deleter',
+      nickname: 'deleteNick',
+      birthday: '2000-06-21',
+      phoneNumber: '010-7777-6666',
     };
 
     await request(app.getHttpServer())
@@ -206,5 +215,32 @@ describe('AppController (e2e)', () => {
         expect(body).toHaveProperty('error');
         expect(body.message).toContain('limit는 1 이상이어야 합니다.');
       });
+    // 2) 게시글 생성
+    const createBoardDto = {
+      title: '삭제할 제목',
+      content: '삭제할 내용',
+      categoryName: 'FREE',
+      boardImage: null,
+      email: testUser.email,
+    };
+
+    interface BoardResponse {
+      message: string;
+      boardId: string;
+    }
+
+    const createRes = await request(app.getHttpServer())
+      .post('/api/boards')
+      .send(createBoardDto)
+      .expect(201);
+
+    const { boardId } = createRes.body as BoardResponse;
+
+    expect(boardId).toBeDefined();
+
+    // 3) DELETE /api/boards/:boardId 호출
+    return request(app.getHttpServer())
+      .delete(`/api/boards/${boardId}`)
+      .expect(200);
   });
 });

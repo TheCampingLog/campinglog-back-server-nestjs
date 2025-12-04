@@ -105,5 +105,8 @@ export class BoardService {
       rank: board.rank,
       viewCount: board.viewCount,
     }));
+  async deleteBoard(boardId: string): Promise<void> {
+    const board = await this.getBoardOrThrow(boardId);
+    await this.boardRepository.remove(board);
   }
 }

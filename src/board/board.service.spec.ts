@@ -209,5 +209,35 @@ describe('BoardService', () => {
     await expect(service.getBoardRank(-1)).rejects.toThrow(
       'limit는 1 이상이어야 합니다.',
     );
+  it('게시글 삭제 테스트', async () => {
+    // given: 회원 + 게시글 저장
+    const member = memberRepository.create({
+      email: 'delete@example.com',
+      password: 'password123',
+      name: '삭제유저',
+      nickname: 'deleter',
+      birthday: new Date('1992-03-15'),
+      phoneNumber: '010-7777-6666',
+    });
+    await memberRepository.save(member);
+
+    let board = boardRepository.create({
+      title: '삭제할 제목',
+      content: '삭제할 내용',
+      categoryName: 'FREE',
+      member: member,
+    });
+    board = await boardRepository.save(board);
+    const boardId = board.boardId;
+
+    // when: 삭제 실행
+    await service.deleteBoard(boardId);
+
+    // then: DB에서 조회했을 때 없어야 함
+    const deleted = await boardRepository.findOne({
+      where: { boardId: boardId },
+    });
+
+    expect(deleted).toBeNull();
   });
 });
