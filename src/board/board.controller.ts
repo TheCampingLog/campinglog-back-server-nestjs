@@ -1,8 +1,11 @@
-import { Controller, Post, Body } from '@nestjs/common';
+import { Controller, Post, Body, Put, Param, UseFilters } from '@nestjs/common';
 import { BoardService } from './board.service';
 import { RequestAddBoardDto } from './dto/request-add-board.dto';
+import { RequestSetBoardDto } from './dto/request-set-board.dto';
+import { BoardExceptionFilter } from './filters/board-exception.filter';
 
 @Controller('api/boards')
+@UseFilters(BoardExceptionFilter)
 export class BoardController {
   constructor(private readonly boardService: BoardService) {}
 
@@ -13,5 +16,13 @@ export class BoardController {
       message: '게시글이 등록되었습니다.',
       boardId: board.boardId,
     };
+  }
+  @Put(':boardId')
+  async update(
+    @Param('boardId') boardId: string,
+    @Body() dto: RequestSetBoardDto,
+  ) {
+    await this.boardService.setBoard({ ...dto, boardId });
+    return { message: '게시글이 수정되었습니다.' };
   }
 }

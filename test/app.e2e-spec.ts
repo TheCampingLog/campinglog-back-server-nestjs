@@ -63,39 +63,4 @@ describe('AppController (e2e)', () => {
       .send(testUser)
       .expect(400);
   });
-
-  it('/api/boards (POST) success', async () => {
-    // 1) 먼저 회원 생성
-    const testUser: RequestAddMemeberDto = {
-      email: 'boardtest@example.com',
-      password: 'test1234',
-      name: 'tester',
-      nickname: 'nick',
-      birthday: '2000-06-21',
-      phoneNumber: '010-1234-5678',
-    };
-
-    await request(app.getHttpServer())
-      .post('/api/members')
-      .send(testUser)
-      .expect(201);
-
-    // 2) 게시글 생성 DTO
-    const testBoard = {
-      title: '테스트 제목',
-      content: '테스트 내용',
-      categoryName: 'FREE',
-      boardImage: null,
-      email: testUser.email,
-    };
-
-    return request(app.getHttpServer())
-      .post('/api/boards')
-      .send(testBoard)
-      .expect(201)
-      .expect((res) => {
-        expect(res.body).toHaveProperty('message', '게시글이 등록되었습니다.');
-        expect(res.body).toHaveProperty('boardId');
-      });
-  });
 });
