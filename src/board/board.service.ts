@@ -73,4 +73,9 @@ export class BoardService {
 
     await this.boardRepository.save(board);
   }
+
+  async deleteBoard(boardId: string): Promise<void> {
+    const board = await this.getBoardOrThrow(boardId);
+    await this.boardRepository.remove(board);
+  }
 }

@@ -1,4 +1,12 @@
-import { Controller, Post, Body, Put, Param, UseFilters } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Put,
+  Param,
+  UseFilters,
+  Delete,
+} from '@nestjs/common';
 import { BoardService } from './board.service';
 import { RequestAddBoardDto } from './dto/request-add-board.dto';
 import { RequestSetBoardDto } from './dto/request-set-board.dto';
@@ -24,5 +32,11 @@ export class BoardController {
   ) {
     await this.boardService.setBoard({ ...dto, boardId });
     return { message: '게시글이 수정되었습니다.' };
+  }
+
+  @Delete(':boardId')
+  async delete(@Param('boardId') boardId: string) {
+    await this.boardService.deleteBoard(boardId);
+    return;
   }
 }
