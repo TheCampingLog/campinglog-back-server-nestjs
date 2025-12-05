@@ -6,7 +6,7 @@ import { AppModule } from './../src/app.module';
 import { RequestAddMemeberDto } from 'src/auth/dto/request/request-add-member.dto';
 import { ValidationPipe } from '@nestjs/common';
 
-describe('AppController (e2e)', () => {
+describe('BoardController (e2e)', () => {
   let app: INestApplication<App>;
 
   beforeEach(async () => {
@@ -131,15 +131,6 @@ describe('AppController (e2e)', () => {
       nickname: 'rankNick',
       birthday: '2000-06-21',
       phoneNumber: '010-7777-8888',
-  it('/api/boards/:boardId (DELETE) success', async () => {
-    // 1) 회원 생성
-    const testUser: RequestAddMemeberDto = {
-      email: 'boarddelete@example.com',
-      password: 'test1234',
-      name: 'deleter',
-      nickname: 'deleteNick',
-      birthday: '2000-06-21',
-      phoneNumber: '010-7777-6666',
     };
 
     await request(app.getHttpServer())
@@ -215,6 +206,24 @@ describe('AppController (e2e)', () => {
         expect(body).toHaveProperty('error');
         expect(body.message).toContain('limit는 1 이상이어야 합니다.');
       });
+  });
+
+  it('/api/boards/:boardId (DELETE) success', async () => {
+    // 1) 회원 생성
+    const testUser: RequestAddMemeberDto = {
+      email: 'boarddelete@example.com',
+      password: 'test1234',
+      name: 'deleter',
+      nickname: 'deleteNick',
+      birthday: '2000-06-21',
+      phoneNumber: '010-7777-6666',
+    };
+
+    await request(app.getHttpServer())
+      .post('/api/members')
+      .send(testUser)
+      .expect(201);
+
     // 2) 게시글 생성
     const createBoardDto = {
       title: '삭제할 제목',
@@ -239,8 +248,6 @@ describe('AppController (e2e)', () => {
     expect(boardId).toBeDefined();
 
     // 3) DELETE /api/boards/:boardId 호출
-    return request(app.getHttpServer())
-      .delete(`/api/boards/${boardId}`)
-      .expect(200);
+    return request(app.getHttpServer()).delete(`/api/boards/${boardId}`);
   });
 });

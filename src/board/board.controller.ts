@@ -42,6 +42,8 @@ export class BoardController {
     @Query('limit') limit: number = 3,
   ): Promise<ResponseGetBoardRankDto[]> {
     return this.boardService.getBoardRank(limit);
+  }
+
   @Delete(':boardId')
   async delete(@Param('boardId') boardId: string) {
     await this.boardService.deleteBoard(boardId);

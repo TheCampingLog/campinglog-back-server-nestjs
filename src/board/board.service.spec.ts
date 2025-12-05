@@ -209,6 +209,8 @@ describe('BoardService', () => {
     await expect(service.getBoardRank(-1)).rejects.toThrow(
       'limit는 1 이상이어야 합니다.',
     );
+  });
+
   it('게시글 삭제 테스트', async () => {
     // given: 회원 + 게시글 저장
     const member = memberRepository.create({
