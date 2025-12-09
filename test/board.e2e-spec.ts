@@ -250,4 +250,63 @@ describe('BoardController (e2e)', () => {
     // 3) DELETE /api/boards/:boardId 호출
     return request(app.getHttpServer()).delete(`/api/boards/${boardId}`);
   });
+
+  it('/api/boards/:boardId (DELETE) 404 - 이미 삭제된 게시글 재삭제 시도', async () => {
+    // 1) 회원 생성
+    const testUser: RequestAddMemeberDto = {
+      email: 'doubledelete@example.com',
+      password: 'test1234',
+      name: 'doubleDeleter',
+      nickname: 'doubleDeleteNick',
+      birthday: '2000-06-21',
+      phoneNumber: '010-8888-9999',
+    };
+
+    await request(app.getHttpServer())
+      .post('/api/members')
+      .send(testUser)
+      .expect(201);
+
+    // 2) 게시글 생성
+    const createBoardDto = {
+      title: '이중 삭제 테스트',
+      content: '삭제될 내용',
+      categoryName: 'FREE',
+      email: testUser.email,
+    };
+
+    interface BoardResponse {
+      message: string;
+      boardId: string;
+    }
+
+    const createRes = await request(app.getHttpServer())
+      .post('/api/boards')
+      .send(createBoardDto)
+      .expect(201);
+
+    const { boardId } = createRes.body as BoardResponse;
+
+    // 3) 첫 번째 삭제 (성공)
+    await request(app.getHttpServer())
+      .delete(`/api/boards/${boardId}`)
+      .expect(200);
+
+    // 4) 두 번째 삭제 시도 (404 에러 발생)
+    return request(app.getHttpServer())
+      .delete(`/api/boards/${boardId}`)
+      .expect(404)
+      .expect((res) => {
+        const body = res.body as {
+          path: string;
+          timestamp: string;
+          error: string;
+          message: string;
+        };
+        expect(body).toHaveProperty('path');
+        expect(body).toHaveProperty('timestamp');
+        expect(body).toHaveProperty('error', 'BOARD_NOT_FOUND');
+        expect(body.message).toContain('게시글을 찾을 수 없습니다.');
+      });
+  });
 });
