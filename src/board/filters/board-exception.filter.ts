@@ -10,7 +10,7 @@ import {
   ForbiddenException,
   ConflictException,
 } from '@nestjs/common';
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import { BoardNotFoundException } from '../exceptions/board-not-found.exception';
 import { CommentNotFoundException } from '../exceptions/comment-not-found.exception';
 import { InvalidBoardRequestException } from '../exceptions/invalid-board-request.exception';
@@ -24,6 +24,7 @@ export class BoardExceptionFilter implements ExceptionFilter {
 
   catch(exception: Error, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
+    const request = ctx.getRequest<Request>();
     const response = ctx.getResponse<Response>();
 
     let status: HttpStatus;
@@ -89,9 +90,10 @@ export class BoardExceptionFilter implements ExceptionFilter {
     }
 
     response.status(status).json({
+      path: request.url,
+      timestamp: new Date().toISOString(),
       error: errorCode,
       message: message,
-      status: status,
     });
   }
 }
