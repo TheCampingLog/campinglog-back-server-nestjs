@@ -65,4 +65,16 @@ export class BoardController {
     );
     return result;
   }
+
+  @Get(':boardId')
+  async getBoardDetail(
+    @Param('boardId') boardId: string,
+    @Query('userEmail') userEmail?: string,
+  ) {
+    const boardDetail = await this.boardService.getBoardDetail(
+      boardId,
+      userEmail,
+    );
+    return boardDetail;
+  }
 }
