@@ -309,4 +309,206 @@ describe('BoardController (e2e)', () => {
         expect(body.message).toContain('게시글을 찾을 수 없습니다.');
       });
   });
+
+  it('/api/boards/search (GET) success - 키워드와 카테고리로 검색', async () => {
+    // 1) 회원 생성
+    const testUser: RequestAddMemeberDto = {
+      email: 'searchtest@example.com',
+      password: 'test1234',
+      name: 'searcher',
+      nickname: 'searchNick',
+      birthday: '2000-06-21',
+      phoneNumber: '010-5555-6666',
+    };
+
+    await request(app.getHttpServer())
+      .post('/api/members')
+      .send(testUser)
+      .expect(201);
+
+    // 2) 여러 게시글 생성
+    const board1 = {
+      title: '캠핑 장비 추천',
+      content: '텐트 추천합니다',
+      categoryName: 'FREE',
+      email: testUser.email,
+    };
+
+    const board2 = {
+      title: '캠핑 요리 레시피',
+      content: '맛있는 요리',
+      categoryName: 'FREE',
+      email: testUser.email,
+    };
+
+    const board3 = {
+      title: '등산 후기',
+      content: '등산 다녀왔어요',
+      categoryName: 'NOTICE',
+      email: testUser.email,
+    };
+
+    await request(app.getHttpServer()).post('/api/boards').send(board1);
+    await request(app.getHttpServer()).post('/api/boards').send(board2);
+    await request(app.getHttpServer()).post('/api/boards').send(board3);
+
+    // 3) GET /api/boards/search?keyword=캠핑&category=FREE&page=1&size=10
+    return request(app.getHttpServer())
+      .get('/api/boards/search?keyword=캠핑&category=FREE&page=1&size=10')
+      .expect(200)
+      .expect((res) => {
+        const body = res.body as {
+          content: Array<{
+            boardId: string;
+            title: string;
+            content: string;
+            categoryName: string;
+            viewCount: number;
+            likeCount: number;
+            commentCount: number;
+            boardImage: string;
+            createdAt: string;
+            nickName: string;
+            keyword: string;
+          }>;
+          totalPages: number;
+          totalElements: number;
+          pageNumber: number;
+          pageSize: number;
+          isFirst: boolean;
+          isLast: boolean;
+        };
+
+        expect(body).toHaveProperty('content');
+        expect(Array.isArray(body.content)).toBe(true);
+        expect(body.content.length).toBeGreaterThan(0);
+        expect(body).toHaveProperty('totalPages');
+        expect(body).toHaveProperty('totalElements');
+        expect(body).toHaveProperty('pageNumber');
+        expect(body).toHaveProperty('pageSize');
+        expect(body).toHaveProperty('isFirst');
+        expect(body).toHaveProperty('isLast');
+
+        // 검색 결과의 첫 번째 항목 검증
+        if (body.content.length > 0) {
+          const firstItem = body.content[0];
+          expect(firstItem).toHaveProperty('boardId');
+          expect(firstItem).toHaveProperty('title');
+          expect(firstItem.title).toContain('캠핑');
+          expect(firstItem).toHaveProperty('categoryName', 'FREE');
+          expect(firstItem).toHaveProperty('nickName', 'searchNick');
+          expect(firstItem).toHaveProperty('keyword', '캠핑');
+        }
+      });
+  });
+
+  it('/api/boards/search (GET) success - 페이징 테스트', async () => {
+    // 1) 회원 생성
+    const testUser: RequestAddMemeberDto = {
+      email: 'pagingtest@example.com',
+      password: 'test1234',
+      name: 'pager',
+      nickname: 'pagingNick',
+      birthday: '2000-06-21',
+      phoneNumber: '010-4444-5555',
+    };
+
+    await request(app.getHttpServer())
+      .post('/api/members')
+      .send(testUser)
+      .expect(201);
+
+    // 2) 5개의 게시글 생성
+    for (let i = 1; i <= 5; i++) {
+      await request(app.getHttpServer())
+        .post('/api/boards')
+        .send({
+          title: `페이징 테스트 ${i}`,
+          content: `내용 ${i}`,
+          categoryName: 'FREE',
+          email: testUser.email,
+        });
+    }
+
+    // 3) GET /api/boards/search?keyword=페이징&category=FREE&page=2&size=2
+    return request(app.getHttpServer())
+      .get('/api/boards/search?keyword=페이징&category=FREE&page=2&size=2')
+      .expect(200)
+      .expect((res) => {
+        const body = res.body as {
+          content: unknown[];
+          totalPages: number;
+          totalElements: number;
+          pageNumber: number;
+          pageSize: number;
+          isFirst: boolean;
+          isLast: boolean;
+        };
+
+        expect(body.content.length).toBe(2); // size=2
+        expect(body.totalElements).toBe(5);
+        expect(body.totalPages).toBe(3); // 5개를 2개씩 = 3페이지
+        expect(body.pageNumber).toBe(1); // 0-based (page 2 = index 1)
+        expect(body.pageSize).toBe(2);
+        expect(body.isFirst).toBe(false);
+        expect(body.isLast).toBe(false);
+      });
+  });
+
+  it('/api/boards/search (GET) default values', async () => {
+    // keyword만 필수, 나머지는 기본값 적용 (category='', page=1, size=3)
+    return request(app.getHttpServer())
+      .get('/api/boards/search?keyword=테스트')
+      .expect(200)
+      .expect((res) => {
+        const body = res.body as {
+          content: unknown[];
+          pageSize: number;
+        };
+
+        expect(body).toHaveProperty('content');
+        expect(Array.isArray(body.content)).toBe(true);
+        expect(body.pageSize).toBe(3); // 기본값
+      });
+  });
+
+  it('/api/boards/search (GET) invalid page', async () => {
+    // page < 1이면 400 에러
+    return request(app.getHttpServer())
+      .get('/api/boards/search?keyword=테스트&category=FREE&page=0&size=3')
+      .expect(400)
+      .expect((res) => {
+        const body = res.body as {
+          path: string;
+          timestamp: string;
+          error: string;
+          message: string;
+        };
+        expect(body).toHaveProperty('path');
+        expect(body).toHaveProperty('timestamp');
+        expect(body).toHaveProperty('error');
+        expect(body).toHaveProperty('message');
+        expect(body.message).toContain('page>=1, size>=1 이어야 합니다.');
+      });
+  });
+
+  it('/api/boards/search (GET) invalid size', async () => {
+    // size < 1이면 400 에러
+    return request(app.getHttpServer())
+      .get('/api/boards/search?keyword=테스트&category=FREE&page=1&size=0')
+      .expect(400)
+      .expect((res) => {
+        const body = res.body as {
+          path: string;
+          timestamp: string;
+          error: string;
+          message: string;
+        };
+        expect(body).toHaveProperty('path');
+        expect(body).toHaveProperty('timestamp');
+        expect(body).toHaveProperty('error');
+        expect(body).toHaveProperty('message');
+        expect(body.message).toContain('page>=1, size>=1 이어야 합니다.');
+      });
+  });
 });
