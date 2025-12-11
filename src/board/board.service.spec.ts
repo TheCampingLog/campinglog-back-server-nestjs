@@ -6,8 +6,8 @@ import { Member } from '../auth/entities/member.entity';
 import { Comment } from './entities/comment.entity';
 import { BoardLike } from './entities/board-like.entity';
 import { TypeOrmModule, getRepositoryToken } from '@nestjs/typeorm';
-import { RequestAddBoardDto } from './dto/request-add-board.dto';
-import { RequestSetBoardDto } from './dto/request-set-board.dto';
+import { RequestAddBoardDto } from './dto/request/request-add-board.dto';
+import { RequestSetBoardDto } from './dto/request/request-set-board.dto';
 
 describe('BoardService', () => {
   let service: BoardService;
@@ -241,5 +241,148 @@ describe('BoardService', () => {
     });
 
     expect(deleted).toBeNull();
+  });
+
+  it('게시글 검색 테스트 - 키워드와 카테고리로 검색', async () => {
+    // given: 회원 생성
+    const member = memberRepository.create({
+      email: 'search@example.com',
+      password: 'password123',
+      name: '검색유저',
+      nickname: 'searcher',
+      birthday: new Date('1990-01-01'),
+      phoneNumber: '010-1234-5678',
+    });
+    await memberRepository.save(member);
+
+    // 다양한 게시글 생성
+    const board1 = boardRepository.create({
+      title: '캠핑 장비 추천',
+      content: '텐트 추천합니다',
+      categoryName: 'FREE',
+      member: member,
+      viewCount: 100,
+      likeCount: 10,
+      commentCount: 5,
+    });
+
+    const board2 = boardRepository.create({
+      title: '캠핑 요리 레시피',
+      content: '맛있는 요리',
+      categoryName: 'FREE',
+      member: member,
+      viewCount: 200,
+      likeCount: 20,
+      commentCount: 10,
+    });
+
+    const board3 = boardRepository.create({
+      title: '등산 후기',
+      content: '등산 다녀왔어요',
+      categoryName: 'NOTICE',
+      member: member,
+      viewCount: 50,
+      likeCount: 5,
+      commentCount: 2,
+    });
+
+    await boardRepository.save([board1, board2, board3]);
+
+    // when: '캠핑' 키워드로 FREE 카테고리 검색
+    const result = await service.searchBoards('캠핑', 'FREE', 1, 10);
+
+    // then
+    expect(result).toBeDefined();
+    expect(result.content).toBeDefined();
+    expect(result.content.length).toBe(2); // board1, board2
+    expect(result.totalElements).toBe(2);
+    expect(result.totalPages).toBe(1);
+    expect(result.pageNumber).toBe(0); // 0-based
+    expect(result.pageSize).toBe(10);
+    expect(result.isFirst).toBe(true);
+    expect(result.isLast).toBe(true);
+
+    // 최신순 정렬 확인 (board2가 먼저)
+    expect(result.content[0].title).toContain('캠핑');
+    expect(result.content[0].nickName).toBe('searcher');
+    expect(result.content[0].keyword).toBe('캠핑');
+  });
+
+  it('게시글 검색 테스트 - 페이징', async () => {
+    // given: 회원 생성
+    const member = memberRepository.create({
+      email: 'paging@example.com',
+      password: 'password123',
+      name: '페이징유저',
+      nickname: 'pager',
+      birthday: new Date('1990-01-01'),
+      phoneNumber: '010-1234-5678',
+    });
+    await memberRepository.save(member);
+
+    // 5개의 게시글 생성
+    const boards: Board[] = [];
+    for (let i = 1; i <= 5; i++) {
+      const board = boardRepository.create({
+        title: `테스트 게시글 ${i}`,
+        content: `내용 ${i}`,
+        categoryName: 'FREE',
+        member: member,
+      });
+      boards.push(board);
+    }
+    await boardRepository.save(boards);
+
+    // when: page=2, size=2로 조회
+    const result = await service.searchBoards('테스트', 'FREE', 2, 2);
+
+    // then
+    expect(result.content.length).toBe(2);
+    expect(result.totalElements).toBe(5);
+    expect(result.totalPages).toBe(3); // 5개를 2개씩 = 3페이지
+    expect(result.pageNumber).toBe(1); // 0-based (page 2 = index 1)
+    expect(result.isFirst).toBe(false);
+    expect(result.isLast).toBe(false);
+  });
+
+  it('게시글 검색 테스트 - 빈 카테고리', async () => {
+    // given: 회원 생성
+    const member = memberRepository.create({
+      email: 'empty@example.com',
+      password: 'password123',
+      name: '빈카테고리유저',
+      nickname: 'empty',
+      birthday: new Date('1990-01-01'),
+      phoneNumber: '010-1234-5678',
+    });
+    await memberRepository.save(member);
+
+    const board = boardRepository.create({
+      title: '검색할 게시글',
+      content: '내용',
+      categoryName: '',
+      member: member,
+    });
+    await boardRepository.save(board);
+
+    // when: 빈 카테고리로 검색
+    const result = await service.searchBoards('검색', '', 1, 10);
+
+    // then
+    expect(result.content.length).toBe(1);
+  });
+
+  it('게시글 검색 테스트 - 유효성 검증 (page < 1)', async () => {
+    // when & then
+    await expect(service.searchBoards('키워드', 'FREE', 0, 3)).rejects.toThrow(
+      'page>=1, size>=1 이어야 합니다.',
+    );
+  });
+
+  it('게시글 검색 테스트 - 유효성 검증 (size < 1)', async () => {
+    // when & then
+    await expect(service.searchBoards('키워드', 'FREE', 1, 0)).rejects.toThrow(
+      'page>=1, size>=1 이어야 합니다.',
+    );
   });
 });

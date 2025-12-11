@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { RequestAddBoardDto } from './dto/request-add-board.dto';
-import { RequestSetBoardDto } from './dto/request-set-board.dto';
-import { ResponseGetBoardRankDto } from './dto/response-get-board-rank.dto';
+import { RequestAddBoardDto } from './dto/request/request-add-board.dto';
+import { RequestSetBoardDto } from './dto/request/request-set-board.dto';
+import { ResponseGetBoardRankDto } from './dto/response/response-get-board-rank.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Board } from './entities/board.entity';
 import { Repository, MoreThan } from 'typeorm';
@@ -9,6 +9,8 @@ import { Member } from '../auth/entities/member.entity';
 import { BoardNotFoundException } from './exceptions/board-not-found.exception';
 import { NotYourBoardException } from './exceptions/not-your-board.exception';
 import { InvalidBoardRequestException } from './exceptions/invalid-board-request.exception';
+import { ResponseGetBoardByKeywordWrapper } from './dto/response/response-get-board-by-keyword-wrapper.dto';
+import { ILike } from 'typeorm';
 
 @Injectable()
 export class BoardService {
@@ -109,5 +111,57 @@ export class BoardService {
   async deleteBoard(boardId: string): Promise<void> {
     const board = await this.getBoardOrThrow(boardId);
     await this.boardRepository.remove(board);
+  }
+
+  async searchBoards(
+    keyword: string,
+    category: string,
+    page: number,
+    size: number,
+  ): Promise<ResponseGetBoardByKeywordWrapper> {
+    if (page < 1 || size < 1) {
+      throw new InvalidBoardRequestException('page>=1, size>=1 이어야 합니다.');
+    }
+
+    const skip = (page - 1) * size;
+
+    const [boards, total] = await this.boardRepository.findAndCount({
+      where: {
+        categoryName: category.trim(),
+        title: ILike(`%${keyword.trim()}%`),
+      },
+      relations: ['member'],
+      order: {
+        createdAt: 'DESC',
+      },
+      skip,
+      take: size,
+    });
+
+    const content = boards.map((board) => ({
+      boardId: board.boardId,
+      title: board.title,
+      content: board.content,
+      categoryName: board.categoryName,
+      viewCount: board.viewCount,
+      likeCount: board.likeCount,
+      commentCount: board.commentCount,
+      boardImage: board.boardImage ?? '',
+      createdAt: board.createdAt.toISOString(),
+      nickName: board.member.nickname,
+      keyword: keyword,
+    }));
+
+    const totalPages = Math.ceil(total / size);
+
+    return {
+      content,
+      totalPages,
+      totalElements: total,
+      pageNumber: page - 1,
+      pageSize: size,
+      isFirst: page === 1,
+      isLast: page >= totalPages,
+    };
   }
 }
