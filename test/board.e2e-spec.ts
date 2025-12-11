@@ -511,4 +511,200 @@ describe('BoardController (e2e)', () => {
         expect(body.message).toContain('page>=1, size>=1 이어야 합니다.');
       });
   });
+
+  it('/api/boards/:boardId (GET) success - 게시글 상세 조회', async () => {
+    // 1) 회원 생성
+    const testUser: RequestAddMemeberDto = {
+      email: 'detailtest@example.com',
+      password: 'test1234',
+      name: 'detailUser',
+      nickname: 'detailNick',
+      birthday: '2000-06-21',
+      phoneNumber: '010-1010-2020',
+    };
+
+    await request(app.getHttpServer())
+      .post('/api/members')
+      .send(testUser)
+      .expect(201);
+
+    // 2) 게시글 생성
+    const createBoardDto = {
+      title: '상세 조회 테스트',
+      content: '상세 내용입니다',
+      categoryName: 'FREE',
+      boardImage: 'test-image.jpg',
+      email: testUser.email,
+    };
+
+    interface BoardResponse {
+      message: string;
+      boardId: string;
+    }
+
+    const createRes = await request(app.getHttpServer())
+      .post('/api/boards')
+      .send(createBoardDto)
+      .expect(201);
+
+    const { boardId } = createRes.body as BoardResponse;
+
+    // 3) GET /api/boards/:boardId 호출
+    return request(app.getHttpServer())
+      .get(`/api/boards/${boardId}`)
+      .expect(200)
+      .expect((res) => {
+        const body = res.body as {
+          boardId: string;
+          title: string;
+          content: string;
+          categoryName: string;
+          viewCount: number;
+          likeCount: number;
+          commentCount: number;
+          boardImage: string;
+          createdAt: string;
+          nickName: string;
+          email: string;
+          isLiked: boolean;
+        };
+
+        expect(body).toHaveProperty('boardId', boardId);
+        expect(body).toHaveProperty('title', '상세 조회 테스트');
+        expect(body).toHaveProperty('content', '상세 내용입니다');
+        expect(body).toHaveProperty('categoryName', 'FREE');
+        expect(body).toHaveProperty('viewCount', 1); // 조회수 1 증가
+        expect(body).toHaveProperty('likeCount', 0);
+        expect(body).toHaveProperty('commentCount', 0);
+        expect(body).toHaveProperty('boardImage', 'test-image.jpg');
+        expect(body).toHaveProperty('createdAt');
+        expect(body).toHaveProperty('nickName', 'detailNick');
+        expect(body).toHaveProperty('email', testUser.email);
+        expect(body).toHaveProperty('isLiked', false); // userEmail 없으면 false
+      });
+  });
+
+  it('/api/boards/:boardId (GET) success - 조회수 증가 확인', async () => {
+    // 1) 회원 생성
+    const testUser: RequestAddMemeberDto = {
+      email: 'viewcount@example.com',
+      password: 'test1234',
+      name: 'viewUser',
+      nickname: 'viewNick',
+      birthday: '2000-06-21',
+      phoneNumber: '010-3030-4040',
+    };
+
+    await request(app.getHttpServer())
+      .post('/api/members')
+      .send(testUser)
+      .expect(201);
+
+    // 2) 게시글 생성
+    const createBoardDto = {
+      title: '조회수 테스트',
+      content: '내용',
+      categoryName: 'FREE',
+      email: testUser.email,
+    };
+
+    interface BoardResponse {
+      message: string;
+      boardId: string;
+    }
+
+    const createRes = await request(app.getHttpServer())
+      .post('/api/boards')
+      .send(createBoardDto)
+      .expect(201);
+
+    const { boardId } = createRes.body as BoardResponse;
+
+    // 3) 첫 번째 조회 (viewCount: 1)
+    const firstView = await request(app.getHttpServer())
+      .get(`/api/boards/${boardId}`)
+      .expect(200);
+
+    const firstBody = firstView.body as { viewCount: number };
+    expect(firstBody.viewCount).toBe(1);
+
+    // 4) 두 번째 조회 (viewCount: 2)
+    const secondView = await request(app.getHttpServer())
+      .get(`/api/boards/${boardId}`)
+      .expect(200);
+
+    const secondBody = secondView.body as { viewCount: number };
+    expect(secondBody.viewCount).toBe(2);
+  });
+
+  it('/api/boards/:boardId (GET) success - userEmail로 좋아요 여부 확인', async () => {
+    // 1) 회원 생성
+    const testUser: RequestAddMemeberDto = {
+      email: 'likechecktest@example.com',
+      password: 'test1234',
+      name: 'likeUser',
+      nickname: 'likeNick',
+      birthday: '2000-06-21',
+      phoneNumber: '010-5050-6060',
+    };
+
+    await request(app.getHttpServer())
+      .post('/api/members')
+      .send(testUser)
+      .expect(201);
+
+    // 2) 게시글 생성
+    const createBoardDto = {
+      title: '좋아요 확인 테스트',
+      content: '내용',
+      categoryName: 'FREE',
+      email: testUser.email,
+    };
+
+    interface BoardResponse {
+      message: string;
+      boardId: string;
+    }
+
+    const createRes = await request(app.getHttpServer())
+      .post('/api/boards')
+      .send(createBoardDto)
+      .expect(201);
+
+    const { boardId } = createRes.body as BoardResponse;
+
+    // 3) userEmail 파라미터와 함께 조회
+    return request(app.getHttpServer())
+      .get(`/api/boards/${boardId}?userEmail=${testUser.email}`)
+      .expect(200)
+      .expect((res) => {
+        const body = res.body as {
+          boardId: string;
+          isLiked: boolean;
+        };
+
+        expect(body).toHaveProperty('boardId', boardId);
+        expect(body).toHaveProperty('isLiked'); // isLiked 필드 존재 확인
+        // 좋아요를 누르지 않았으므로 false
+        expect(body.isLiked).toBe(false);
+      });
+  });
+
+  it('/api/boards/:boardId (GET) 404 - 존재하지 않는 게시글 조회', async () => {
+    return request(app.getHttpServer())
+      .get('/api/boards/nonexistent-board-id')
+      .expect(404)
+      .expect((res) => {
+        const body = res.body as {
+          path: string;
+          timestamp: string;
+          error: string;
+          message: string;
+        };
+        expect(body).toHaveProperty('path');
+        expect(body).toHaveProperty('timestamp');
+        expect(body).toHaveProperty('error', 'BOARD_NOT_FOUND');
+        expect(body.message).toContain('게시글을 찾을 수 없습니다.');
+      });
+  });
 });
