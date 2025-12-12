@@ -5,6 +5,7 @@ import { Board } from './board.entity';
 import { Member } from '../../auth/entities/member.entity';
 import { BoardLike } from './board-like.entity';
 import { Comment } from './comment.entity';
+import { RefreshToken } from '../../auth/entities/refresh-token.entity';
 
 describe('Board Enrity test', () => {
   let boardRepository: Repository<Board>;
@@ -19,7 +20,7 @@ describe('Board Enrity test', () => {
         TypeOrmModule.forRoot({
           type: 'sqlite',
           database: ':memory:',
-          entities: [Board, Member, BoardLike, Comment],
+          entities: [Board, Member, BoardLike, Comment, RefreshToken],
           synchronize: true,
           dropSchema: true,
         }),

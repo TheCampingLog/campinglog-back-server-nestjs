@@ -6,6 +6,7 @@ import { Member } from '../auth/entities/member.entity';
 import { Comment } from './entities/comment.entity';
 import { BoardLike } from './entities/board-like.entity';
 import { TypeOrmModule, getRepositoryToken } from '@nestjs/typeorm';
+import { RefreshToken } from '../auth/entities/refresh-token.entity';
 import { RequestAddBoardDto } from './dto/request/request-add-board.dto';
 import { RequestSetBoardDto } from './dto/request/request-set-board.dto';
 import { BoardNotFoundException } from './exceptions/board-not-found.exception';
@@ -23,7 +24,7 @@ describe('BoardService', () => {
         TypeOrmModule.forRoot({
           type: 'sqlite',
           database: ':memory:',
-          entities: [Board, Member, Comment, BoardLike],
+          entities: [Board, Member, Comment, BoardLike, RefreshToken],
           synchronize: true,
           dropSchema: true,
         }),

@@ -6,9 +6,10 @@ import {
   OneToMany,
   PrimaryColumn,
 } from 'typeorm';
-import { Board } from '../../board/entities/board.entity';
-import { BoardLike } from '../../board/entities/board-like.entity';
-import { Comment } from '../../board/entities/comment.entity';
+import { Board } from 'src/board/entities/board.entity';
+import { BoardLike } from 'src/board/entities/board-like.entity';
+import { Comment } from 'src/board/entities/comment.entity';
+import { RefreshToken } from './refresh-token.entity';
 
 export enum Role {
   USER = 'USER',
@@ -61,19 +62,25 @@ export class Member {
     cascade: true,
     orphanedRowAction: 'delete',
   })
-  boards: Board[];
+  boards?: Board[];
 
   @OneToMany(() => Comment, (comment) => comment.member, {
     cascade: true,
     orphanedRowAction: 'delete',
   })
-  comments: Comment[];
+  comments?: Comment[];
 
   @OneToMany(() => BoardLike, (boardLike) => boardLike.member, {
     cascade: true,
     orphanedRowAction: 'delete',
   })
-  board_like: BoardLike[];
+  board_like?: BoardLike[];
+
+  @OneToMany(() => RefreshToken, (refreshToken) => refreshToken.member, {
+    cascade: true,
+    orphanedRowAction: 'delete',
+  })
+  refresh_tokens?: RefreshToken[];
 
   @BeforeInsert()
   setDefaults?(): void {

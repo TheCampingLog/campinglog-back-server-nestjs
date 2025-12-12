@@ -3,6 +3,7 @@ import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { Logger } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import cookieParser from 'cookie-parser';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -16,6 +17,7 @@ async function bootstrap() {
     // .addBearerAuth() // JWT Auth 쓰면 등록
     .build();
 
+  app.use(cookieParser());
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
