@@ -1,12 +1,35 @@
 import { Module } from '@nestjs/common';
-import { AuthService } from './auth.service';
-import { AuthController } from './auth.controller';
+import { PassportModule } from '@nestjs/passport';
+import { JwtModule } from '@nestjs/jwt';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { MemberModule } from '../member/member.module';
+import { AuthController } from './auth.controller';
+import { AuthService } from './auth.service';
+import { LocalStrategy } from './passport/local.strategy';
+import { AccessStrategy } from './passport/access.strategy';
+import { RefreshStrategy } from './passport/refresh.strategy';
+import { JwtConfigService } from './jwt/jwt.config';
+import { AccessTokenService } from './jwt/access-token.service';
 import { Member } from './entities/member.entity';
+import { RefreshToken } from './entities/refresh-token.entity';
+import { RefreshTokenService } from './jwt/refresh-token.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Member])],
+  imports: [
+    PassportModule,
+    JwtModule.register({}),
+    TypeOrmModule.forFeature([Member, RefreshToken]),
+    MemberModule,
+  ],
   controllers: [AuthController],
-  providers: [AuthService],
+  providers: [
+    AuthService,
+    LocalStrategy,
+    AccessStrategy,
+    RefreshStrategy,
+    JwtConfigService,
+    AccessTokenService,
+    RefreshTokenService,
+  ],
 })
 export class AuthModule {}

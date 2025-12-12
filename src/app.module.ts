@@ -8,19 +8,21 @@ import { envValidationSchema } from './config/validation/env.validation';
 import { CampinfoModule } from './campinfo/campinfo.module';
 import { HttpConfigModule } from './config/http-config.module';
 import { BoardModule } from './board/board.module';
+import { MemberModule } from './member/member.module';
 
 @Module({
   imports: [
     HttpConfigModule,
     CampinfoModule,
     AuthModule,
+    MemberModule,
     BoardModule,
     TypeOrmModule.forRoot({
       type: 'sqlite',
       database: ':memory:',
       autoLoadEntities: true,
       synchronize: true,
-      logging: true,
+      logging: false,
       dropSchema: true,
     }),
     ConfigModule.forRoot({
