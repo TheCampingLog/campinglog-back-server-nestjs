@@ -10,10 +10,10 @@ import {
   Delete,
 } from '@nestjs/common';
 import { BoardService } from './board.service';
-import { RequestAddBoardDto } from './dto/request-add-board.dto';
-import { RequestSetBoardDto } from './dto/request-set-board.dto';
+import { RequestAddBoardDto } from './dto/request/request-add-board.dto';
+import { RequestSetBoardDto } from './dto/request/request-set-board.dto';
 import { BoardExceptionFilter } from './filters/board-exception.filter';
-import { ResponseGetBoardRankDto } from './dto/response-get-board-rank.dto';
+import { ResponseGetBoardRankDto } from './dto/response/response-get-board-rank.dto';
 
 @Controller('api/boards')
 @UseFilters(BoardExceptionFilter)
@@ -48,5 +48,33 @@ export class BoardController {
   async delete(@Param('boardId') boardId: string) {
     await this.boardService.deleteBoard(boardId);
     return;
+  }
+
+  @Get('search')
+  async searchBoards(
+    @Query('keyword') keyword: string,
+    @Query('category') category: string = '',
+    @Query('page') page: number = 1,
+    @Query('size') size: number = 3,
+  ) {
+    const result = await this.boardService.searchBoards(
+      keyword,
+      category,
+      page,
+      size,
+    );
+    return result;
+  }
+
+  @Get(':boardId')
+  async getBoardDetail(
+    @Param('boardId') boardId: string,
+    @Query('userEmail') userEmail?: string,
+  ) {
+    const boardDetail = await this.boardService.getBoardDetail(
+      boardId,
+      userEmail,
+    );
+    return boardDetail;
   }
 }

@@ -1,16 +1,26 @@
-import { Expose, Exclude } from 'class-transformer';
+import { ApiProperty } from '@nestjs/swagger';
 
-@Exclude()
 export class ResponseGetCampLatestList {
-  @Expose() facltNm: string;
-  @Expose() doNm: string;
-  @Expose() sigunguNm: string;
-  @Expose() addr1: string;
-  @Expose() addr2: string;
-  @Expose() mapX: string;
-  @Expose() mapY: string;
-  @Expose() tel: string;
-  @Expose() sbrsCl: string;
-  @Expose() firstImageUrl: string;
-  @Expose() totalCount: number;
+  @ApiProperty({ type: 'string' })
+  facltNm: string;
+  @ApiProperty({ type: 'string' })
+  doNm: string;
+  @ApiProperty({ type: 'string' })
+  sigunguNm: string;
+  @ApiProperty({ type: 'string' })
+  addr1: string;
+  @ApiProperty({ type: 'string' })
+  addr2: string;
+  @ApiProperty({ type: 'string' })
+  mapX: string;
+  @ApiProperty({ type: 'string' })
+  mapY: string;
+  @ApiProperty({ type: 'string' })
+  tel: string;
+  @ApiProperty({ type: 'string' })
+  sbrsCl: string;
+  @ApiProperty({ type: 'string' })
+  firstImageUrl: string;
+  @ApiProperty({ type: 'number' })
+  totalCount: number;
 }

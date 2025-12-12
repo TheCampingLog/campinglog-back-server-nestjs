@@ -6,14 +6,16 @@ import { Member } from '../auth/entities/member.entity';
 import { Comment } from './entities/comment.entity';
 import { BoardLike } from './entities/board-like.entity';
 import { TypeOrmModule, getRepositoryToken } from '@nestjs/typeorm';
-import { RequestAddBoardDto } from './dto/request-add-board.dto';
-import { RequestSetBoardDto } from './dto/request-set-board.dto';
 import { RefreshToken } from '../auth/entities/refresh-token.entity';
+import { RequestAddBoardDto } from './dto/request/request-add-board.dto';
+import { RequestSetBoardDto } from './dto/request/request-set-board.dto';
+import { BoardNotFoundException } from './exceptions/board-not-found.exception';
 
 describe('BoardService', () => {
   let service: BoardService;
   let boardRepository: Repository<Board>;
   let memberRepository: Repository<Member>;
+  let boardLikeRepository: Repository<BoardLike>;
   let module: TestingModule | null = null;
 
   beforeAll(async () => {
@@ -36,6 +38,9 @@ describe('BoardService', () => {
     memberRepository = module.get<Repository<Member>>(
       getRepositoryToken(Member),
     );
+    boardLikeRepository = module.get<Repository<BoardLike>>(
+      getRepositoryToken(BoardLike),
+    );
   });
 
   afterAll(async () => {
@@ -45,6 +50,7 @@ describe('BoardService', () => {
   });
 
   afterEach(async () => {
+    await boardLikeRepository.clear();
     await boardRepository.clear();
     await memberRepository.clear();
   });
@@ -242,5 +248,319 @@ describe('BoardService', () => {
     });
 
     expect(deleted).toBeNull();
+  });
+
+  it('게시글 검색 테스트 - 키워드와 카테고리로 검색', async () => {
+    // given: 회원 생성
+    const member = memberRepository.create({
+      email: 'search@example.com',
+      password: 'password123',
+      name: '검색유저',
+      nickname: 'searcher',
+      birthday: new Date('1990-01-01'),
+      phoneNumber: '010-1234-5678',
+    });
+    await memberRepository.save(member);
+
+    // 다양한 게시글 생성
+    const board1 = boardRepository.create({
+      title: '캠핑 장비 추천',
+      content: '텐트 추천합니다',
+      categoryName: 'FREE',
+      member: member,
+      viewCount: 100,
+      likeCount: 10,
+      commentCount: 5,
+    });
+
+    const board2 = boardRepository.create({
+      title: '캠핑 요리 레시피',
+      content: '맛있는 요리',
+      categoryName: 'FREE',
+      member: member,
+      viewCount: 200,
+      likeCount: 20,
+      commentCount: 10,
+    });
+
+    const board3 = boardRepository.create({
+      title: '등산 후기',
+      content: '등산 다녀왔어요',
+      categoryName: 'NOTICE',
+      member: member,
+      viewCount: 50,
+      likeCount: 5,
+      commentCount: 2,
+    });
+
+    await boardRepository.save([board1, board2, board3]);
+
+    // when: '캠핑' 키워드로 FREE 카테고리 검색
+    const result = await service.searchBoards('캠핑', 'FREE', 1, 10);
+
+    // then
+    expect(result).toBeDefined();
+    expect(result.content).toBeDefined();
+    expect(result.content.length).toBe(2); // board1, board2
+    expect(result.totalElements).toBe(2);
+    expect(result.totalPages).toBe(1);
+    expect(result.pageNumber).toBe(0); // 0-based
+    expect(result.pageSize).toBe(10);
+    expect(result.isFirst).toBe(true);
+    expect(result.isLast).toBe(true);
+
+    // 최신순 정렬 확인 (board2가 먼저)
+    expect(result.content[0].title).toContain('캠핑');
+    expect(result.content[0].nickName).toBe('searcher');
+    expect(result.content[0].keyword).toBe('캠핑');
+  });
+
+  it('게시글 검색 테스트 - 페이징', async () => {
+    // given: 회원 생성
+    const member = memberRepository.create({
+      email: 'paging@example.com',
+      password: 'password123',
+      name: '페이징유저',
+      nickname: 'pager',
+      birthday: new Date('1990-01-01'),
+      phoneNumber: '010-1234-5678',
+    });
+    await memberRepository.save(member);
+
+    // 5개의 게시글 생성
+    const boards: Board[] = [];
+    for (let i = 1; i <= 5; i++) {
+      const board = boardRepository.create({
+        title: `테스트 게시글 ${i}`,
+        content: `내용 ${i}`,
+        categoryName: 'FREE',
+        member: member,
+      });
+      boards.push(board);
+    }
+    await boardRepository.save(boards);
+
+    // when: page=2, size=2로 조회
+    const result = await service.searchBoards('테스트', 'FREE', 2, 2);
+
+    // then
+    expect(result.content.length).toBe(2);
+    expect(result.totalElements).toBe(5);
+    expect(result.totalPages).toBe(3); // 5개를 2개씩 = 3페이지
+    expect(result.pageNumber).toBe(1); // 0-based (page 2 = index 1)
+    expect(result.isFirst).toBe(false);
+    expect(result.isLast).toBe(false);
+  });
+
+  it('게시글 검색 테스트 - 빈 카테고리', async () => {
+    // given: 회원 생성
+    const member = memberRepository.create({
+      email: 'empty@example.com',
+      password: 'password123',
+      name: '빈카테고리유저',
+      nickname: 'empty',
+      birthday: new Date('1990-01-01'),
+      phoneNumber: '010-1234-5678',
+    });
+    await memberRepository.save(member);
+
+    const board = boardRepository.create({
+      title: '검색할 게시글',
+      content: '내용',
+      categoryName: '',
+      member: member,
+    });
+    await boardRepository.save(board);
+
+    // when: 빈 카테고리로 검색
+    const result = await service.searchBoards('검색', '', 1, 10);
+
+    // then
+    expect(result.content.length).toBe(1);
+  });
+
+  it('게시글 검색 테스트 - 유효성 검증 (page < 1)', async () => {
+    // when & then
+    await expect(service.searchBoards('키워드', 'FREE', 0, 3)).rejects.toThrow(
+      'page>=1, size>=1 이어야 합니다.',
+    );
+  });
+
+  it('게시글 검색 테스트 - 유효성 검증 (size < 1)', async () => {
+    // when & then
+    await expect(service.searchBoards('키워드', 'FREE', 1, 0)).rejects.toThrow(
+      'page>=1, size>=1 이어야 합니다.',
+    );
+  });
+
+  it('게시글 상세 조회 테스트 - 조회수 증가 확인', async () => {
+    // given: 회원 + 게시글 생성
+    const member = memberRepository.create({
+      email: 'detail@example.com',
+      password: 'password123',
+      name: '상세조회유저',
+      nickname: 'detailUser',
+      birthday: new Date('1990-01-01'),
+      phoneNumber: '010-1111-2222',
+    });
+    await memberRepository.save(member);
+
+    let board = boardRepository.create({
+      title: '상세 조회 테스트',
+      content: '상세 내용',
+      categoryName: 'FREE',
+      boardImage: 'test-image.jpg',
+      member: member,
+      viewCount: 10,
+      likeCount: 5,
+      commentCount: 3,
+    });
+    board = await boardRepository.save(board);
+
+    const initialViewCount = board.viewCount;
+
+    // when: 게시글 상세 조회
+    const result = await service.getBoardDetail(board.boardId);
+
+    // then: 응답 검증
+    expect(result).toBeDefined();
+    expect(result.boardId).toBe(board.boardId);
+    expect(result.title).toBe(board.title);
+    expect(result.content).toBe(board.content);
+    expect(result.categoryName).toBe(board.categoryName);
+    expect(result.viewCount).toBe(initialViewCount + 1); // 조회수 증가 확인
+    expect(result.likeCount).toBe(board.likeCount);
+    expect(result.commentCount).toBe(board.commentCount);
+    expect(result.boardImage).toBe(board.boardImage);
+    expect(result.nickName).toBe(member.nickname);
+    expect(result.email).toBe(member.email);
+    expect(result.isLiked).toBe(false); // userEmail 없으면 false
+
+    // DB에서 조회수가 실제로 증가했는지 확인
+    const updatedBoard = await boardRepository.findOne({
+      where: { boardId: board.boardId },
+    });
+    expect(updatedBoard?.viewCount).toBe(initialViewCount + 1);
+  });
+
+  it('게시글 상세 조회 테스트 - 좋아요 누른 경우', async () => {
+    // given: 회원 + 게시글 생성
+    const member = memberRepository.create({
+      email: 'liked@example.com',
+      password: 'password123',
+      name: '좋아요유저',
+      nickname: 'likedUser',
+      birthday: new Date('1990-01-01'),
+      phoneNumber: '010-3333-4444',
+    });
+    await memberRepository.save(member);
+
+    let board = boardRepository.create({
+      title: '좋아요 테스트',
+      content: '좋아요 내용',
+      categoryName: 'FREE',
+      member: member,
+      viewCount: 0,
+      likeCount: 1,
+      commentCount: 0,
+    });
+    board = await boardRepository.save(board);
+
+    // BoardLike 생성
+    const boardLike = boardLikeRepository.create({
+      board: board,
+      member: member,
+    });
+    await boardLikeRepository.save(boardLike);
+
+    // when: 좋아요를 누른 사용자로 조회
+    const result = await service.getBoardDetail(board.boardId, member.email);
+
+    // then
+    expect(result).toBeDefined();
+    expect(result.isLiked).toBe(true); // 좋아요 누른 상태
+    expect(result.likeCount).toBe(1);
+  });
+
+  it('게시글 상세 조회 테스트 - 좋아요 안 누른 경우', async () => {
+    // given: 회원 2명 생성
+    const owner = memberRepository.create({
+      email: 'owner@example.com',
+      password: 'password123',
+      name: '작성자',
+      nickname: 'owner',
+      birthday: new Date('1990-01-01'),
+      phoneNumber: '010-5555-6666',
+    });
+    await memberRepository.save(owner);
+
+    const viewer = memberRepository.create({
+      email: 'viewer@example.com',
+      password: 'password123',
+      name: '조회자',
+      nickname: 'viewer',
+      birthday: new Date('1995-05-05'),
+      phoneNumber: '010-7777-8888',
+    });
+    await memberRepository.save(viewer);
+
+    // owner가 작성한 게시글
+    let board = boardRepository.create({
+      title: '좋아요 없음 테스트',
+      content: '내용',
+      categoryName: 'FREE',
+      member: owner,
+      viewCount: 0,
+      likeCount: 0,
+      commentCount: 0,
+    });
+    board = await boardRepository.save(board);
+
+    // when: 다른 사용자(viewer)가 조회
+    const result = await service.getBoardDetail(board.boardId, viewer.email);
+
+    // then
+    expect(result).toBeDefined();
+    expect(result.isLiked).toBe(false); // 좋아요 안 누름
+    expect(result.email).toBe(owner.email); // 작성자 정보
+    expect(result.nickName).toBe(owner.nickname);
+  });
+
+  it('게시글 상세 조회 테스트 - 존재하지 않는 게시글', async () => {
+    // when & then
+    await expect(
+      service.getBoardDetail('nonexistent-board-id'),
+    ).rejects.toThrow(BoardNotFoundException);
+  });
+
+  it('게시글 상세 조회 테스트 - 빈 이메일로 조회', async () => {
+    // given: 회원 + 게시글 생성
+    const member = memberRepository.create({
+      email: 'empty@example.com',
+      password: 'password123',
+      name: '빈이메일',
+      nickname: 'emptyUser',
+      birthday: new Date('1990-01-01'),
+      phoneNumber: '010-9999-0000',
+    });
+    await memberRepository.save(member);
+
+    let board = boardRepository.create({
+      title: '빈 이메일 테스트',
+      content: '내용',
+      categoryName: 'FREE',
+      member: member,
+      viewCount: 0,
+      likeCount: 0,
+      commentCount: 0,
+    });
+    board = await boardRepository.save(board);
+
+    // when: 빈 이메일로 조회
+    const result = await service.getBoardDetail(board.boardId, '');
+
+    // then
+    expect(result).toBeDefined();
+    expect(result.isLiked).toBe(false); // 빈 이메일이면 좋아요 체크 안 함
   });
 });
