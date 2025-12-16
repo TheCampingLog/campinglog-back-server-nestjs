@@ -1,12 +1,22 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  HttpCode,
+  Param,
+  Query,
+  UseFilters,
+} from '@nestjs/common';
 import { CampinfoService } from './campinfo.service';
 import { ResponseGetCampWrapper } from './dto/response/response-get-camp-wrapper.dto';
 import { ResponseGetCampLatestList } from './dto/response/response-get-camp-latest-list.dto';
 import { ApiOkResponse, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { CampListResponse } from './dto/swagger/camp-list.response';
+import { ResponseGetCampDetail } from './dto/response/response-get-camp-detail.dto';
+import { CampInfoExceptionFilter } from './filters/campinfo-exception.filter';
 
 @ApiTags('camp-info-rest-controller')
 @Controller('/api/camps')
+@UseFilters(CampInfoExceptionFilter)
 export class CampinfoController {
   constructor(private readonly campinfoService: CampinfoService) {}
 
@@ -15,7 +25,7 @@ export class CampinfoController {
     return 'hello';
   }
 
-  @ApiOkResponse({ type: CampListResponse }) // ⭐ Swagger 자동 스키마
+  @ApiOkResponse({ type: CampListResponse })
   @ApiQuery({
     name: 'size',
     required: false,
@@ -27,10 +37,20 @@ export class CampinfoController {
     schema: { type: 'integer', default: 1 },
   })
   @Get('/list')
+  @HttpCode(200)
   getCampListLatest(
-    @Query('pageNo') pageNo = 1,
-    @Query('size') size = 4,
+    @Query('pageNo') pageNo: number = 1,
+    @Query('size') size: number = 4,
   ): Promise<ResponseGetCampWrapper<ResponseGetCampLatestList>> {
     return this.campinfoService.getCampListLatest(pageNo, size);
+  }
+
+  @Get('/detail/:mapX/:mapY')
+  @HttpCode(200)
+  getCampDetail(
+    @Param('mapX') mapX: string,
+    @Param('mapY') mapY: string,
+  ): Promise<ResponseGetCampDetail> {
+    return this.campinfoService.getCampDetail(mapX, mapY);
   }
 }

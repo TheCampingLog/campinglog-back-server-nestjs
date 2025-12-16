@@ -30,7 +30,7 @@ describe('AppController (e2e)', () => {
     await app.init();
   });
 
-  it('/api/camps/list (GET) success', () => {
+  it('/api/camps/list (GET) 200', () => {
     //given
     const testValue = {
       number: 1,
@@ -52,6 +52,30 @@ describe('AppController (e2e)', () => {
         expect(res.body).toHaveProperty('hasNext');
         expect(res.body).toHaveProperty('page');
         expect(res.body).toHaveProperty('size');
+      });
+  });
+
+  it('/api/camps/detail/:mapX/:mapY (GET) 200', async () => {
+    const mapX = '127.2636514';
+    const mapY = '37.0323408';
+
+    const res = await request(app.getHttpServer())
+      .get(`/api/camps/detail/${mapX}/${mapY}`)
+      .expect(200);
+
+    expect(res.body).toBeDefined();
+    expect(res.body.facltNm).toBeDefined();
+  });
+
+  it('/api/camps/detail/:mapX/:mapY (GET) 404', async () => {
+    const mapX = '9999';
+    const mapY = '9999';
+
+    await request(app.getHttpServer())
+      .get(`/api/camps/detail/${mapX}/${mapY}`)
+      .expect(404)
+      .expect((res) => {
+        expect(res.body.message).toContain('해당 게시글이 존재하지 않습니다.');
       });
   });
 });
