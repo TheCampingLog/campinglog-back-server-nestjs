@@ -6,6 +6,7 @@ import { AppModule } from './../src/app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { ResponseGetCampWrapper } from 'src/campinfo/dto/response/response-get-camp-wrapper.dto';
 import { ResponseGetCampLatestList } from 'src/campinfo/dto/response/response-get-camp-latest-list.dto';
+import { ResponseGetCampDetail } from 'src/campinfo/dto/response/response-get-camp-detail.dto';
 
 describe('AppController (e2e)', () => {
   let app: INestApplication<App>;
@@ -30,7 +31,7 @@ describe('AppController (e2e)', () => {
     await app.init();
   });
 
-  it('/api/camps/list (GET) success', () => {
+  it('/api/camps/list (GET) 200', () => {
     //given
     const testValue = {
       number: 1,
@@ -53,5 +54,26 @@ describe('AppController (e2e)', () => {
         expect(res.body).toHaveProperty('page');
         expect(res.body).toHaveProperty('size');
       });
+  });
+
+  it('/api/camps/detail/:mapX/:mapY (GET) 200', async () => {
+    const mapX = '127.2636514';
+    const mapY = '37.0323408';
+
+    const res = await request(app.getHttpServer())
+      .get(`/api/camps/detail/${mapX}/${mapY}`)
+      .expect(200);
+    const result = res.body as ResponseGetCampDetail;
+    expect(result).toBeDefined();
+    expect(result.facltNm).toBeDefined();
+  });
+
+  it('/api/camps/detail/:mapX/:mapY (GET) 404', async () => {
+    const mapX = '9999';
+    const mapY = '9999';
+
+    await request(app.getHttpServer())
+      .get(`/api/camps/detail/${mapX}/${mapY}`)
+      .expect(404);
   });
 });
