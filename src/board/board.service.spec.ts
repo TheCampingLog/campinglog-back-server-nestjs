@@ -563,4 +563,162 @@ describe('BoardService', () => {
     expect(result).toBeDefined();
     expect(result.isLiked).toBe(false); // 빈 이메일이면 좋아요 체크 안 함
   });
+
+  it('카테고리별 게시글 조회 테스트', async () => {
+    // given: 회원 생성
+    const member = memberRepository.create({
+      email: 'category@example.com',
+      password: 'password123',
+      name: '카테고리유저',
+      nickname: 'categoryUser',
+      birthday: new Date('1990-01-01'),
+      phoneNumber: '010-1111-2222',
+    });
+    await memberRepository.save(member);
+
+    // 다양한 카테고리의 게시글 생성 (명시적으로 시간 설정)
+    const now = new Date();
+
+    const board1 = boardRepository.create({
+      title: 'FREE 게시글 1',
+      content: '자유 게시판 내용 1',
+      categoryName: 'FREE',
+      member: member,
+      viewCount: 10,
+      likeCount: 5,
+      commentCount: 2,
+      createdAt: new Date(now.getTime() - 2000), // 2초 전
+    });
+    await boardRepository.save(board1);
+
+    const board2 = boardRepository.create({
+      title: 'FREE 게시글 2',
+      content: '자유 게시판 내용 2',
+      categoryName: 'FREE',
+      member: member,
+      viewCount: 20,
+      likeCount: 10,
+      commentCount: 5,
+      createdAt: new Date(now.getTime() - 1000), // 1초 전
+    });
+    await boardRepository.save(board2);
+
+    const board3 = boardRepository.create({
+      title: 'NOTICE 게시글',
+      content: '공지사항',
+      categoryName: 'NOTICE',
+      member: member,
+      viewCount: 100,
+      likeCount: 50,
+      commentCount: 20,
+      createdAt: now,
+    });
+    await boardRepository.save(board3);
+
+    // when: FREE 카테고리 조회
+    const result = await service.getBoardsByCategory('FREE', 1, 10);
+
+    // then
+    expect(result).toBeDefined();
+    expect(result.content).toBeDefined();
+    expect(result.content.length).toBe(2); // FREE 게시글 2개
+    expect(result.totalElements).toBe(2);
+    expect(result.totalPages).toBe(1);
+    expect(result.pageNumber).toBe(0); // 0-based
+    expect(result.pageSize).toBe(10);
+    expect(result.isFirst).toBe(true);
+    expect(result.isLast).toBe(true);
+
+    // 모든 게시글이 FREE 카테고리인지 확인
+    result.content.forEach((board) => {
+      expect(board.categoryName).toBe('FREE');
+      expect(board.nickName).toBe('categoryUser');
+    });
+
+    // 최신순 정렬 확인 (board2가 나중에 생성되었으므로 먼저 나옴)
+    expect(result.content[0].title).toBe('FREE 게시글 2');
+    expect(result.content[1].title).toBe('FREE 게시글 1');
+  });
+
+  it('카테고리별 게시글 조회 테스트 - 페이징', async () => {
+    // given: 회원 생성
+    const member = memberRepository.create({
+      email: 'categorypaging@example.com',
+      password: 'password123',
+      name: '페이징유저',
+      nickname: 'pagingUser',
+      birthday: new Date('1990-01-01'),
+      phoneNumber: '010-3333-4444',
+    });
+    await memberRepository.save(member);
+
+    // 5개의 게시글 생성
+    const boards: Board[] = [];
+    for (let i = 1; i <= 5; i++) {
+      const board = boardRepository.create({
+        title: `카테고리 테스트 ${i}`,
+        content: `내용 ${i}`,
+        categoryName: 'FREE',
+        member: member,
+      });
+      boards.push(board);
+    }
+    await boardRepository.save(boards);
+
+    // when: page=2, size=2로 조회
+    const result = await service.getBoardsByCategory('FREE', 2, 2);
+
+    // then
+    expect(result.content.length).toBe(2);
+    expect(result.totalElements).toBe(5);
+    expect(result.totalPages).toBe(3); // 5개를 2개씩 = 3페이지
+    expect(result.pageNumber).toBe(1); // 0-based (page 2 = index 1)
+    expect(result.pageSize).toBe(2);
+    expect(result.isFirst).toBe(false);
+    expect(result.isLast).toBe(false);
+  });
+
+  it('카테고리별 게시글 조회 테스트 - 빈 결과', async () => {
+    // given: 회원 생성
+    const member = memberRepository.create({
+      email: 'emptycat@example.com',
+      password: 'password123',
+      name: '빈결과유저',
+      nickname: 'emptyUser',
+      birthday: new Date('1990-01-01'),
+      phoneNumber: '010-5555-6666',
+    });
+    await memberRepository.save(member);
+
+    const board = boardRepository.create({
+      title: '게시글',
+      content: '내용',
+      categoryName: 'FREE',
+      member: member,
+    });
+    await boardRepository.save(board);
+
+    // when: 존재하지 않는 카테고리 조회
+    const result = await service.getBoardsByCategory('NONEXISTENT', 1, 10);
+
+    // then
+    expect(result).toBeDefined();
+    expect(result.content.length).toBe(0);
+    expect(result.totalElements).toBe(0);
+    expect(result.totalPages).toBe(0);
+  });
+
+  it('카테고리별 게시글 조회 테스트 - 유효성 검증 (page < 1)', async () => {
+    // when & then
+    await expect(service.getBoardsByCategory('FREE', 0, 3)).rejects.toThrow(
+      'page>=1, size>=1 이어야 합니다.',
+    );
+  });
+
+  it('카테고리별 게시글 조회 테스트 - 유효성 검증 (size < 1)', async () => {
+    // when & then
+    await expect(service.getBoardsByCategory('FREE', 1, 0)).rejects.toThrow(
+      'page>=1, size>=1 이어야 합니다.',
+    );
+  });
 });

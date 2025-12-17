@@ -13,6 +13,7 @@ import { ResponseGetBoardByKeywordWrapper } from './dto/response/response-get-bo
 import { ILike } from 'typeorm';
 import { ResponseGetBoardDetailDto } from './dto/response/response-get-board-detail.dto';
 import { BoardLike } from './entities/board-like.entity';
+import { ResponseGetBoardByCategoryWrapper } from './dto/response/response-get-board-by-category-wrapper.dto';
 
 @Injectable()
 export class BoardService {
@@ -49,7 +50,7 @@ export class BoardService {
     return board;
   }
   async addBoard(dto: RequestAddBoardDto): Promise<Board> {
-    const member = await this.getMemberOrThrow(dto.email);
+    const member = await this.getMemberOrThrow(dto.email as string);
 
     const board = this.boardRepository.create({
       title: dto.title,
@@ -203,6 +204,55 @@ export class BoardService {
       nickName: board.member.nickname,
       email: board.member.email,
       isLiked: isLiked,
+    };
+  }
+
+  async getBoardsByCategory(
+    category: string,
+    page: number,
+    size: number,
+  ): Promise<ResponseGetBoardByCategoryWrapper> {
+    if (page < 1 || size < 1) {
+      throw new InvalidBoardRequestException('page>=1, size>=1 이어야 합니다.');
+    }
+
+    const skip = (page - 1) * size;
+
+    const [boards, total] = await this.boardRepository.findAndCount({
+      where: {
+        categoryName: category.trim(),
+      },
+      relations: ['member'],
+      order: {
+        createdAt: 'DESC',
+      },
+      skip,
+      take: size,
+    });
+
+    const content = boards.map((board) => ({
+      boardId: board.boardId,
+      title: board.title,
+      content: board.content,
+      categoryName: board.categoryName,
+      viewCount: board.viewCount,
+      likeCount: board.likeCount,
+      commentCount: board.commentCount,
+      boardImage: board.boardImage ?? '',
+      createdAt: board.createdAt.toISOString(),
+      nickName: board.member.nickname,
+    }));
+
+    const totalPages = Math.ceil(total / size);
+
+    return {
+      content,
+      totalPages,
+      totalElements: total,
+      pageNumber: page - 1,
+      pageSize: size,
+      isFirst: page === 1,
+      isLast: page >= totalPages,
     };
   }
 }

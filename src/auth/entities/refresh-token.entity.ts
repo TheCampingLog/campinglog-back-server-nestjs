@@ -25,6 +25,7 @@ export class RefreshToken {
 
   @ManyToOne(() => Member, (member) => member.refresh_tokens, {
     nullable: false,
+    onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'email', referencedColumnName: 'email' })
   member: Member;

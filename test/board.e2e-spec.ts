@@ -5,16 +5,29 @@ import { App } from 'supertest/types';
 import { AppModule } from './../src/app.module';
 import { RequestAddMemeberDto } from 'src/auth/dto/request/request-add-member.dto';
 import { ValidationPipe } from '@nestjs/common';
+import { Member } from 'src/auth/entities/member.entity';
+import { Board } from 'src/board/entities/board.entity';
+import { BoardLike } from 'src/board/entities/board-like.entity';
+import { Comment } from 'src/board/entities/comment.entity';
+import { Repository } from 'typeorm';
+import cookieParser from 'cookie-parser';
+import * as bcrypt from 'bcrypt';
 
 describe('BoardController (e2e)', () => {
   let app: INestApplication<App>;
+  let memberRepository: Repository<Member>;
+  let boardRepository: Repository<Board>;
+  let boardLikeRepository: Repository<BoardLike>;
+  let commentRepository: Repository<Comment>;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
 
     app = moduleFixture.createNestApplication();
+
+    app.use(cookieParser());
 
     app.useGlobalPipes(
       new ValidationPipe({
@@ -27,15 +40,80 @@ describe('BoardController (e2e)', () => {
     );
 
     await app.init();
+    boardRepository = moduleFixture.get('BoardRepository');
+    memberRepository = moduleFixture.get('MemberRepository');
   });
 
-  it('/api/boards (POST) success', async () => {
-    // 1) 먼저 회원 생성
+  const createTestBoard = (email: string, likeCount: number) => {
+    const board = boardRepository.create({
+      title: '첫번째 게시판',
+      content: '내용',
+      categoryName: '자유',
+      likeCount: likeCount,
+      member: { email: email } as Member,
+    });
+    return board;
+  };
+
+  const createAndSaveMember = async (email: string): Promise<Member> => {
+    const testMember = await createTestMember(email);
+    const member = memberRepository.create(testMember);
+    const resultMember = await memberRepository.save(member);
+    return resultMember;
+  };
+
+  const createTestMember = async (email?: string): Promise<Member> => {
+    const hashedPassword = await bcrypt.hash('test1234', 10);
+    return {
+      email: email ?? 'test@example.com',
+      password: hashedPassword,
+      name: 'choi',
+      nickname: 'testnickname',
+      birthday: new Date(2002, 8, 20),
+      phoneNumber: '010-1234-1234',
+    };
+  };
+
+  const createAndSaveBoard = async (
+    email: string,
+    likeCount: number,
+  ): Promise<Board> => {
+    const testBoard = createTestBoard(email, likeCount);
+    const resultBoard = await boardRepository.save(testBoard);
+    return resultBoard;
+  };
+
+  const createAndSaveBoardLike = async (
+    member: Member,
+    board: Board,
+  ): Promise<BoardLike> => {
+    const testBoardLike = boardLikeRepository.create({ member, board });
+    const resultBoardLike = await boardLikeRepository.save(testBoardLike);
+    return resultBoardLike;
+  };
+
+  const createAndSaveComment = async (
+    member: Member,
+    board: Board,
+  ): Promise<Comment> => {
+    const testComment = commentRepository.create({
+      member,
+      board,
+      content: '댓글 내용',
+    });
+    const resultComment = await commentRepository.save(testComment);
+    return resultComment;
+  };
+
+  const createMemberAndLogin = async (
+    email: string,
+    nickname?: string,
+  ): Promise<{ email: string; accessToken: string }> => {
     const testUser: RequestAddMemeberDto = {
-      email: 'boardtest@example.com',
+      email,
       password: 'test1234',
       name: 'tester',
-      nickname: 'nick',
+      nickname: nickname || `${email.split('@')[0]}Nick`,
       birthday: '2000-06-21',
       phoneNumber: '010-1234-5678',
     };
@@ -45,40 +123,54 @@ describe('BoardController (e2e)', () => {
       .send(testUser)
       .expect(201);
 
-    // 2) 게시글 생성 DTO
+    const loginResponse = await request(app.getHttpServer())
+      .post('/login')
+      .send({ email, password: 'test1234' })
+      .expect(200);
+
+    expect(loginResponse.headers['authorization']).toBeTruthy();
+
+    return {
+      email,
+      accessToken: loginResponse.headers['authorization'],
+    };
+  };
+
+  afterEach(async () => {
+    await boardRepository.clear();
+    await memberRepository.clear();
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  it('/api/boards (POST) success', async () => {
+    const { accessToken } = await createMemberAndLogin(
+      'boardtest@example.com',
+      'nick',
+    );
     const testBoard = {
       title: '테스트 제목',
       content: '테스트 내용',
       categoryName: 'FREE',
       boardImage: null,
-      email: testUser.email,
     };
 
-    return request(app.getHttpServer())
+    const response = await request(app.getHttpServer())
       .post('/api/boards')
+      .set('authorization', accessToken)
       .send(testBoard)
-      .expect(201)
-      .expect((res) => {
-        expect(res.body).toHaveProperty('message', '게시글이 등록되었습니다.');
-        expect(res.body).toHaveProperty('boardId');
-      });
+      .expect(201);
+
+    expect(response.body).toHaveProperty('message', '게시글이 등록되었습니다.');
   });
 
   it('/api/boards/:boardId (PUT) success', async () => {
-    // 1) 회원 생성
-    const testUser: RequestAddMemeberDto = {
-      email: 'boardupdate@example.com',
-      password: 'test1234',
-      name: 'updater',
-      nickname: 'updateNick',
-      birthday: '2000-06-21',
-      phoneNumber: '010-9999-8888',
-    };
-
-    await request(app.getHttpServer())
-      .post('/api/members')
-      .send(testUser)
-      .expect(201);
+    const { accessToken } = await createMemberAndLogin(
+      'boardupdate@example.com',
+      'updateNick',
+    );
 
     // 2) 게시글 생성
     const createBoardDto = {
@@ -86,7 +178,6 @@ describe('BoardController (e2e)', () => {
       content: '원래 내용',
       categoryName: 'FREE',
       boardImage: null,
-      email: testUser.email,
     };
 
     interface BoardResponse {
@@ -96,6 +187,7 @@ describe('BoardController (e2e)', () => {
 
     const createRes = await request(app.getHttpServer())
       .post('/api/boards')
+      .set('authorization', accessToken)
       .send(createBoardDto)
       .expect(201);
 
@@ -103,18 +195,18 @@ describe('BoardController (e2e)', () => {
 
     expect(boardId).toBeDefined();
 
-    // 3) 게시글 수정 DTO
+    // 4) 게시글 수정
     const updateBoardDto = {
       title: '수정된 제목',
       content: '수정된 내용',
       categoryName: 'NOTICE',
       boardImage: 'updated-image',
-      email: testUser.email,
     };
 
-    // 4) PUT /api/boards/:boardId 호출
+    // 5) PUT /api/boards/:boardId 호출
     return request(app.getHttpServer())
       .put(`/api/boards/${boardId}`)
+      .set('authorization', accessToken)
       .send(updateBoardDto)
       .expect(200)
       .expect((res) => {
@@ -123,40 +215,37 @@ describe('BoardController (e2e)', () => {
   });
 
   it('/api/boards/rank (GET) success', async () => {
-    // 1) 회원 생성
-    const testUser: RequestAddMemeberDto = {
-      email: 'ranktest@example.com',
-      password: 'test1234',
-      name: 'ranker',
-      nickname: 'rankNick',
-      birthday: '2000-06-21',
-      phoneNumber: '010-7777-8888',
-    };
+    const { accessToken } = await createMemberAndLogin(
+      'ranktest@example.com',
+      'rankNick',
+    );
 
-    await request(app.getHttpServer())
-      .post('/api/members')
-      .send(testUser)
-      .expect(201);
-
-    // 2) 여러 게시글 생성
+    // 3) 여러 게시글 생성
     const board1 = {
       title: '인기 게시글 1',
       content: '내용1',
       categoryName: 'FREE',
-      email: testUser.email,
     };
 
     const board2 = {
       title: '인기 게시글 2',
       content: '내용2',
       categoryName: 'FREE',
-      email: testUser.email,
     };
 
-    await request(app.getHttpServer()).post('/api/boards').send(board1);
-    await request(app.getHttpServer()).post('/api/boards').send(board2);
+    await request(app.getHttpServer())
+      .post('/api/boards')
+      .set('authorization', accessToken)
+      .send(board1)
+      .expect(201);
 
-    // 3) GET /api/boards/rank?limit=2 호출
+    await request(app.getHttpServer())
+      .post('/api/boards')
+      .set('authorization', accessToken)
+      .send(board2)
+      .expect(201);
+
+    // 4) GET /api/boards/rank?limit=2 호출
     return request(app.getHttpServer())
       .get('/api/boards/rank?limit=2')
       .expect(200)
@@ -209,28 +298,17 @@ describe('BoardController (e2e)', () => {
   });
 
   it('/api/boards/:boardId (DELETE) success', async () => {
-    // 1) 회원 생성
-    const testUser: RequestAddMemeberDto = {
-      email: 'boarddelete@example.com',
-      password: 'test1234',
-      name: 'deleter',
-      nickname: 'deleteNick',
-      birthday: '2000-06-21',
-      phoneNumber: '010-7777-6666',
-    };
+    const { accessToken } = await createMemberAndLogin(
+      'boarddelete@example.com',
+      'deleteNick',
+    );
 
-    await request(app.getHttpServer())
-      .post('/api/members')
-      .send(testUser)
-      .expect(201);
-
-    // 2) 게시글 생성
+    // 3) 게시글 생성
     const createBoardDto = {
       title: '삭제할 제목',
       content: '삭제할 내용',
       categoryName: 'FREE',
       boardImage: null,
-      email: testUser.email,
     };
 
     interface BoardResponse {
@@ -240,6 +318,7 @@ describe('BoardController (e2e)', () => {
 
     const createRes = await request(app.getHttpServer())
       .post('/api/boards')
+      .set('authorization', accessToken)
       .send(createBoardDto)
       .expect(201);
 
@@ -247,32 +326,24 @@ describe('BoardController (e2e)', () => {
 
     expect(boardId).toBeDefined();
 
-    // 3) DELETE /api/boards/:boardId 호출
-    return request(app.getHttpServer()).delete(`/api/boards/${boardId}`);
+    // 4) DELETE /api/boards/:boardId 호출
+    return request(app.getHttpServer())
+      .delete(`/api/boards/${boardId}`)
+      .set('authorization', accessToken)
+      .expect(204);
   });
 
   it('/api/boards/:boardId (DELETE) 404 - 이미 삭제된 게시글 재삭제 시도', async () => {
-    // 1) 회원 생성
-    const testUser: RequestAddMemeberDto = {
-      email: 'doubledelete@example.com',
-      password: 'test1234',
-      name: 'doubleDeleter',
-      nickname: 'doubleDeleteNick',
-      birthday: '2000-06-21',
-      phoneNumber: '010-8888-9999',
-    };
+    const { accessToken } = await createMemberAndLogin(
+      'doubledelete@example.com',
+      'doubleDeleteNick',
+    );
 
-    await request(app.getHttpServer())
-      .post('/api/members')
-      .send(testUser)
-      .expect(201);
-
-    // 2) 게시글 생성
+    // 3) 게시글 생성
     const createBoardDto = {
       title: '이중 삭제 테스트',
       content: '삭제될 내용',
       categoryName: 'FREE',
-      email: testUser.email,
     };
 
     interface BoardResponse {
@@ -282,19 +353,22 @@ describe('BoardController (e2e)', () => {
 
     const createRes = await request(app.getHttpServer())
       .post('/api/boards')
+      .set('authorization', accessToken)
       .send(createBoardDto)
       .expect(201);
 
     const { boardId } = createRes.body as BoardResponse;
 
-    // 3) 첫 번째 삭제 (성공)
+    // 4) 첫 번째 삭제 (성공)
     await request(app.getHttpServer())
       .delete(`/api/boards/${boardId}`)
-      .expect(200);
+      .set('authorization', accessToken)
+      .expect(204);
 
-    // 4) 두 번째 삭제 시도 (404 에러 발생)
+    // 5) 두 번째 삭제 시도 (404 에러 발생)
     return request(app.getHttpServer())
       .delete(`/api/boards/${boardId}`)
+      .set('authorization', accessToken)
       .expect(404)
       .expect((res) => {
         const body = res.body as {
@@ -311,46 +385,47 @@ describe('BoardController (e2e)', () => {
   });
 
   it('/api/boards/search (GET) success - 키워드와 카테고리로 검색', async () => {
-    // 1) 회원 생성
-    const testUser: RequestAddMemeberDto = {
-      email: 'searchtest@example.com',
-      password: 'test1234',
-      name: 'searcher',
-      nickname: 'searchNick',
-      birthday: '2000-06-21',
-      phoneNumber: '010-5555-6666',
-    };
+    const { accessToken } = await createMemberAndLogin(
+      'searchtest@example.com',
+      'searchNick',
+    );
 
-    await request(app.getHttpServer())
-      .post('/api/members')
-      .send(testUser)
-      .expect(201);
-
-    // 2) 여러 게시글 생성
+    // 3) 여러 게시글 생성
     const board1 = {
       title: '캠핑 장비 추천',
       content: '텐트 추천합니다',
       categoryName: 'FREE',
-      email: testUser.email,
     };
 
     const board2 = {
       title: '캠핑 요리 레시피',
       content: '맛있는 요리',
       categoryName: 'FREE',
-      email: testUser.email,
     };
 
     const board3 = {
       title: '등산 후기',
       content: '등산 다녀왔어요',
       categoryName: 'NOTICE',
-      email: testUser.email,
     };
 
-    await request(app.getHttpServer()).post('/api/boards').send(board1);
-    await request(app.getHttpServer()).post('/api/boards').send(board2);
-    await request(app.getHttpServer()).post('/api/boards').send(board3);
+    await request(app.getHttpServer())
+      .post('/api/boards')
+      .set('authorization', accessToken)
+      .send(board1)
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .post('/api/boards')
+      .set('authorization', accessToken)
+      .send(board2)
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .post('/api/boards')
+      .set('authorization', accessToken)
+      .send(board3)
+      .expect(201);
 
     // 3) GET /api/boards/search?keyword=캠핑&category=FREE&page=1&size=10
     return request(app.getHttpServer())
@@ -403,31 +478,22 @@ describe('BoardController (e2e)', () => {
   });
 
   it('/api/boards/search (GET) success - 페이징 테스트', async () => {
-    // 1) 회원 생성
-    const testUser: RequestAddMemeberDto = {
-      email: 'pagingtest@example.com',
-      password: 'test1234',
-      name: 'pager',
-      nickname: 'pagingNick',
-      birthday: '2000-06-21',
-      phoneNumber: '010-4444-5555',
-    };
+    const { accessToken } = await createMemberAndLogin(
+      'pagingtest@example.com',
+      'pagingNick',
+    );
 
-    await request(app.getHttpServer())
-      .post('/api/members')
-      .send(testUser)
-      .expect(201);
-
-    // 2) 5개의 게시글 생성
+    // 3) 5개의 게시글 생성
     for (let i = 1; i <= 5; i++) {
       await request(app.getHttpServer())
         .post('/api/boards')
+        .set('authorization', accessToken)
         .send({
           title: `페이징 테스트 ${i}`,
           content: `내용 ${i}`,
           categoryName: 'FREE',
-          email: testUser.email,
-        });
+        })
+        .expect(201);
     }
 
     // 3) GET /api/boards/search?keyword=페이징&category=FREE&page=2&size=2
@@ -513,28 +579,17 @@ describe('BoardController (e2e)', () => {
   });
 
   it('/api/boards/:boardId (GET) success - 게시글 상세 조회', async () => {
-    // 1) 회원 생성
-    const testUser: RequestAddMemeberDto = {
-      email: 'detailtest@example.com',
-      password: 'test1234',
-      name: 'detailUser',
-      nickname: 'detailNick',
-      birthday: '2000-06-21',
-      phoneNumber: '010-1010-2020',
-    };
+    const { email: testEmail, accessToken } = await createMemberAndLogin(
+      'detailtest@example.com',
+      'detailNick',
+    );
 
-    await request(app.getHttpServer())
-      .post('/api/members')
-      .send(testUser)
-      .expect(201);
-
-    // 2) 게시글 생성
+    // 3) 게시글 생성
     const createBoardDto = {
       title: '상세 조회 테스트',
       content: '상세 내용입니다',
       categoryName: 'FREE',
       boardImage: 'test-image.jpg',
-      email: testUser.email,
     };
 
     interface BoardResponse {
@@ -544,6 +599,7 @@ describe('BoardController (e2e)', () => {
 
     const createRes = await request(app.getHttpServer())
       .post('/api/boards')
+      .set('authorization', accessToken)
       .send(createBoardDto)
       .expect(201);
 
@@ -579,33 +635,22 @@ describe('BoardController (e2e)', () => {
         expect(body).toHaveProperty('boardImage', 'test-image.jpg');
         expect(body).toHaveProperty('createdAt');
         expect(body).toHaveProperty('nickName', 'detailNick');
-        expect(body).toHaveProperty('email', testUser.email);
+        expect(body).toHaveProperty('email', testEmail);
         expect(body).toHaveProperty('isLiked', false); // userEmail 없으면 false
       });
   });
 
   it('/api/boards/:boardId (GET) success - 조회수 증가 확인', async () => {
-    // 1) 회원 생성
-    const testUser: RequestAddMemeberDto = {
-      email: 'viewcount@example.com',
-      password: 'test1234',
-      name: 'viewUser',
-      nickname: 'viewNick',
-      birthday: '2000-06-21',
-      phoneNumber: '010-3030-4040',
-    };
+    const { accessToken } = await createMemberAndLogin(
+      'viewcount@example.com',
+      'viewNick',
+    );
 
-    await request(app.getHttpServer())
-      .post('/api/members')
-      .send(testUser)
-      .expect(201);
-
-    // 2) 게시글 생성
+    // 3) 게시글 생성
     const createBoardDto = {
       title: '조회수 테스트',
       content: '내용',
       categoryName: 'FREE',
-      email: testUser.email,
     };
 
     interface BoardResponse {
@@ -615,6 +660,7 @@ describe('BoardController (e2e)', () => {
 
     const createRes = await request(app.getHttpServer())
       .post('/api/boards')
+      .set('authorization', accessToken)
       .send(createBoardDto)
       .expect(201);
 
@@ -638,27 +684,16 @@ describe('BoardController (e2e)', () => {
   });
 
   it('/api/boards/:boardId (GET) success - userEmail로 좋아요 여부 확인', async () => {
-    // 1) 회원 생성
-    const testUser: RequestAddMemeberDto = {
-      email: 'likechecktest@example.com',
-      password: 'test1234',
-      name: 'likeUser',
-      nickname: 'likeNick',
-      birthday: '2000-06-21',
-      phoneNumber: '010-5050-6060',
-    };
+    const { email: testEmail, accessToken } = await createMemberAndLogin(
+      'likechecktest@example.com',
+      'likeNick',
+    );
 
-    await request(app.getHttpServer())
-      .post('/api/members')
-      .send(testUser)
-      .expect(201);
-
-    // 2) 게시글 생성
+    // 3) 게시글 생성
     const createBoardDto = {
       title: '좋아요 확인 테스트',
       content: '내용',
       categoryName: 'FREE',
-      email: testUser.email,
     };
 
     interface BoardResponse {
@@ -668,6 +703,7 @@ describe('BoardController (e2e)', () => {
 
     const createRes = await request(app.getHttpServer())
       .post('/api/boards')
+      .set('authorization', accessToken)
       .send(createBoardDto)
       .expect(201);
 
@@ -675,7 +711,7 @@ describe('BoardController (e2e)', () => {
 
     // 3) userEmail 파라미터와 함께 조회
     return request(app.getHttpServer())
-      .get(`/api/boards/${boardId}?userEmail=${testUser.email}`)
+      .get(`/api/boards/${boardId}?userEmail=${testEmail}`)
       .expect(200)
       .expect((res) => {
         const body = res.body as {
@@ -705,6 +741,210 @@ describe('BoardController (e2e)', () => {
         expect(body).toHaveProperty('timestamp');
         expect(body).toHaveProperty('error', 'BOARD_NOT_FOUND');
         expect(body.message).toContain('게시글을 찾을 수 없습니다.');
+      });
+  });
+
+  it('/api/boards/category (GET) success - 카테고리별 게시글 조회', async () => {
+    const { accessToken } = await createMemberAndLogin(
+      'categorytest@example.com',
+      'categoryNick',
+    );
+
+    // 2) 여러 카테고리의 게시글 생성
+    const board1 = {
+      title: 'FREE 게시글 1',
+      content: '자유 게시판 내용 1',
+      categoryName: 'FREE',
+    };
+
+    const board2 = {
+      title: 'FREE 게시글 2',
+      content: '자유 게시판 내용 2',
+      categoryName: 'FREE',
+    };
+
+    const board3 = {
+      title: 'NOTICE 게시글',
+      content: '공지사항',
+      categoryName: 'NOTICE',
+    };
+
+    await request(app.getHttpServer())
+      .post('/api/boards')
+      .set('authorization', accessToken)
+      .send(board1)
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .post('/api/boards')
+      .set('authorization', accessToken)
+      .send(board2)
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .post('/api/boards')
+      .set('authorization', accessToken)
+      .send(board3)
+      .expect(201);
+
+    // 3) GET /api/boards/category?category=FREE&page=1&size=10
+    return request(app.getHttpServer())
+      .get('/api/boards/category?category=FREE&page=1&size=10')
+      .expect(200)
+      .expect((res) => {
+        const body = res.body as {
+          content: Array<{
+            boardId: string;
+            title: string;
+            content: string;
+            categoryName: string;
+            viewCount: number;
+            likeCount: number;
+            commentCount: number;
+            boardImage: string;
+            createdAt: string;
+            nickName: string;
+          }>;
+          totalPages: number;
+          totalElements: number;
+          pageNumber: number;
+          pageSize: number;
+          isFirst: boolean;
+          isLast: boolean;
+        };
+
+        expect(body).toHaveProperty('content');
+        expect(Array.isArray(body.content)).toBe(true);
+        expect(body.content.length).toBe(2); // FREE 게시글 2개
+        expect(body).toHaveProperty('totalPages');
+        expect(body).toHaveProperty('totalElements', 2);
+        expect(body).toHaveProperty('pageNumber');
+        expect(body).toHaveProperty('pageSize');
+        expect(body).toHaveProperty('isFirst');
+        expect(body).toHaveProperty('isLast');
+
+        // 모든 게시글이 FREE 카테고리인지 확인
+        body.content.forEach((board) => {
+          expect(board.categoryName).toBe('FREE');
+          expect(board.nickName).toBe('categoryNick');
+        });
+      });
+  });
+
+  it('/api/boards/category (GET) success - 페이징 테스트', async () => {
+    const { accessToken } = await createMemberAndLogin(
+      'categorypaging@example.com',
+      'pagingNick',
+    );
+
+    // 2) 5개의 게시글 생성
+    for (let i = 1; i <= 5; i++) {
+      await request(app.getHttpServer())
+        .post('/api/boards')
+        .set('authorization', accessToken)
+        .send({
+          title: `카테고리 테스트 ${i}`,
+          content: `내용 ${i}`,
+          categoryName: 'FREE',
+        })
+        .expect(201);
+    }
+
+    // 3) GET /api/boards/category?category=FREE&page=2&size=2
+    return request(app.getHttpServer())
+      .get('/api/boards/category?category=FREE&page=2&size=2')
+      .expect(200)
+      .expect((res) => {
+        const body = res.body as {
+          content: unknown[];
+          totalPages: number;
+          totalElements: number;
+          pageNumber: number;
+          pageSize: number;
+          isFirst: boolean;
+          isLast: boolean;
+        };
+
+        expect(body.content.length).toBe(2); // size=2
+        expect(body.totalElements).toBe(5);
+        expect(body.totalPages).toBe(3); // 5개를 2개씩 = 3페이지
+        expect(body.pageNumber).toBe(1); // 0-based (page 2 = index 1)
+        expect(body.pageSize).toBe(2);
+        expect(body.isFirst).toBe(false);
+        expect(body.isLast).toBe(false);
+      });
+  });
+
+  it('/api/boards/category (GET) success - 빈 결과', async () => {
+    // 존재하지 않는 카테고리 조회
+    return request(app.getHttpServer())
+      .get('/api/boards/category?category=NONEXISTENT&page=1&size=10')
+      .expect(200)
+      .expect((res) => {
+        const body = res.body as {
+          content: unknown[];
+          totalElements: number;
+        };
+
+        expect(body.content.length).toBe(0);
+        expect(body.totalElements).toBe(0);
+      });
+  });
+
+  it('/api/boards/category (GET) default values', async () => {
+    // category만 필수, 나머지는 기본값 적용 (page=1, size=3)
+    return request(app.getHttpServer())
+      .get('/api/boards/category?category=FREE')
+      .expect(200)
+      .expect((res) => {
+        const body = res.body as {
+          content: unknown[];
+          pageSize: number;
+        };
+
+        expect(body).toHaveProperty('content');
+        expect(Array.isArray(body.content)).toBe(true);
+        expect(body.pageSize).toBe(3); // 기본값
+      });
+  });
+
+  it('/api/boards/category (GET) invalid page', async () => {
+    // page < 1이면 400 에러
+    return request(app.getHttpServer())
+      .get('/api/boards/category?category=FREE&page=0&size=3')
+      .expect(400)
+      .expect((res) => {
+        const body = res.body as {
+          path: string;
+          timestamp: string;
+          error: string;
+          message: string;
+        };
+        expect(body).toHaveProperty('path');
+        expect(body).toHaveProperty('timestamp');
+        expect(body).toHaveProperty('error');
+        expect(body).toHaveProperty('message');
+        expect(body.message).toContain('page>=1, size>=1 이어야 합니다.');
+      });
+  });
+
+  it('/api/boards/category (GET) invalid size', async () => {
+    // size < 1이면 400 에러
+    return request(app.getHttpServer())
+      .get('/api/boards/category?category=FREE&page=1&size=0')
+      .expect(400)
+      .expect((res) => {
+        const body = res.body as {
+          path: string;
+          timestamp: string;
+          error: string;
+          message: string;
+        };
+        expect(body).toHaveProperty('path');
+        expect(body).toHaveProperty('timestamp');
+        expect(body).toHaveProperty('error');
+        expect(body).toHaveProperty('message');
+        expect(body.message).toContain('page>=1, size>=1 이어야 합니다.');
       });
   });
 });
