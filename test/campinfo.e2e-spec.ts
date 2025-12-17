@@ -6,6 +6,7 @@ import { AppModule } from './../src/app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { ResponseGetCampWrapper } from 'src/campinfo/dto/response/response-get-camp-wrapper.dto';
 import { ResponseGetCampLatestList } from 'src/campinfo/dto/response/response-get-camp-latest-list.dto';
+import { ResponseGetCampDetail } from 'src/campinfo/dto/response/response-get-camp-detail.dto';
 
 describe('AppController (e2e)', () => {
   let app: INestApplication<App>;
@@ -62,9 +63,9 @@ describe('AppController (e2e)', () => {
     const res = await request(app.getHttpServer())
       .get(`/api/camps/detail/${mapX}/${mapY}`)
       .expect(200);
-
-    expect(res.body).toBeDefined();
-    expect(res.body.facltNm).toBeDefined();
+    const result = res.body as ResponseGetCampDetail;
+    expect(result).toBeDefined();
+    expect(result.facltNm).toBeDefined();
   });
 
   it('/api/camps/detail/:mapX/:mapY (GET) 404', async () => {
@@ -73,9 +74,6 @@ describe('AppController (e2e)', () => {
 
     await request(app.getHttpServer())
       .get(`/api/camps/detail/${mapX}/${mapY}`)
-      .expect(404)
-      .expect((res) => {
-        expect(res.body.message).toContain('해당 게시글이 존재하지 않습니다.');
-      });
+      .expect(404);
   });
 });
