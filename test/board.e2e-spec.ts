@@ -743,4 +743,208 @@ describe('BoardController (e2e)', () => {
         expect(body.message).toContain('게시글을 찾을 수 없습니다.');
       });
   });
+
+  it('/api/boards/category (GET) success - 카테고리별 게시글 조회', async () => {
+    const { accessToken } = await createMemberAndLogin(
+      'categorytest@example.com',
+      'categoryNick',
+    );
+
+    // 2) 여러 카테고리의 게시글 생성
+    const board1 = {
+      title: 'FREE 게시글 1',
+      content: '자유 게시판 내용 1',
+      categoryName: 'FREE',
+    };
+
+    const board2 = {
+      title: 'FREE 게시글 2',
+      content: '자유 게시판 내용 2',
+      categoryName: 'FREE',
+    };
+
+    const board3 = {
+      title: 'NOTICE 게시글',
+      content: '공지사항',
+      categoryName: 'NOTICE',
+    };
+
+    await request(app.getHttpServer())
+      .post('/api/boards')
+      .set('authorization', accessToken)
+      .send(board1)
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .post('/api/boards')
+      .set('authorization', accessToken)
+      .send(board2)
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .post('/api/boards')
+      .set('authorization', accessToken)
+      .send(board3)
+      .expect(201);
+
+    // 3) GET /api/boards/category?category=FREE&page=1&size=10
+    return request(app.getHttpServer())
+      .get('/api/boards/category?category=FREE&page=1&size=10')
+      .expect(200)
+      .expect((res) => {
+        const body = res.body as {
+          content: Array<{
+            boardId: string;
+            title: string;
+            content: string;
+            categoryName: string;
+            viewCount: number;
+            likeCount: number;
+            commentCount: number;
+            boardImage: string;
+            createdAt: string;
+            nickName: string;
+          }>;
+          totalPages: number;
+          totalElements: number;
+          pageNumber: number;
+          pageSize: number;
+          isFirst: boolean;
+          isLast: boolean;
+        };
+
+        expect(body).toHaveProperty('content');
+        expect(Array.isArray(body.content)).toBe(true);
+        expect(body.content.length).toBe(2); // FREE 게시글 2개
+        expect(body).toHaveProperty('totalPages');
+        expect(body).toHaveProperty('totalElements', 2);
+        expect(body).toHaveProperty('pageNumber');
+        expect(body).toHaveProperty('pageSize');
+        expect(body).toHaveProperty('isFirst');
+        expect(body).toHaveProperty('isLast');
+
+        // 모든 게시글이 FREE 카테고리인지 확인
+        body.content.forEach((board) => {
+          expect(board.categoryName).toBe('FREE');
+          expect(board.nickName).toBe('categoryNick');
+        });
+      });
+  });
+
+  it('/api/boards/category (GET) success - 페이징 테스트', async () => {
+    const { accessToken } = await createMemberAndLogin(
+      'categorypaging@example.com',
+      'pagingNick',
+    );
+
+    // 2) 5개의 게시글 생성
+    for (let i = 1; i <= 5; i++) {
+      await request(app.getHttpServer())
+        .post('/api/boards')
+        .set('authorization', accessToken)
+        .send({
+          title: `카테고리 테스트 ${i}`,
+          content: `내용 ${i}`,
+          categoryName: 'FREE',
+        })
+        .expect(201);
+    }
+
+    // 3) GET /api/boards/category?category=FREE&page=2&size=2
+    return request(app.getHttpServer())
+      .get('/api/boards/category?category=FREE&page=2&size=2')
+      .expect(200)
+      .expect((res) => {
+        const body = res.body as {
+          content: unknown[];
+          totalPages: number;
+          totalElements: number;
+          pageNumber: number;
+          pageSize: number;
+          isFirst: boolean;
+          isLast: boolean;
+        };
+
+        expect(body.content.length).toBe(2); // size=2
+        expect(body.totalElements).toBe(5);
+        expect(body.totalPages).toBe(3); // 5개를 2개씩 = 3페이지
+        expect(body.pageNumber).toBe(1); // 0-based (page 2 = index 1)
+        expect(body.pageSize).toBe(2);
+        expect(body.isFirst).toBe(false);
+        expect(body.isLast).toBe(false);
+      });
+  });
+
+  it('/api/boards/category (GET) success - 빈 결과', async () => {
+    // 존재하지 않는 카테고리 조회
+    return request(app.getHttpServer())
+      .get('/api/boards/category?category=NONEXISTENT&page=1&size=10')
+      .expect(200)
+      .expect((res) => {
+        const body = res.body as {
+          content: unknown[];
+          totalElements: number;
+        };
+
+        expect(body.content.length).toBe(0);
+        expect(body.totalElements).toBe(0);
+      });
+  });
+
+  it('/api/boards/category (GET) default values', async () => {
+    // category만 필수, 나머지는 기본값 적용 (page=1, size=3)
+    return request(app.getHttpServer())
+      .get('/api/boards/category?category=FREE')
+      .expect(200)
+      .expect((res) => {
+        const body = res.body as {
+          content: unknown[];
+          pageSize: number;
+        };
+
+        expect(body).toHaveProperty('content');
+        expect(Array.isArray(body.content)).toBe(true);
+        expect(body.pageSize).toBe(3); // 기본값
+      });
+  });
+
+  it('/api/boards/category (GET) invalid page', async () => {
+    // page < 1이면 400 에러
+    return request(app.getHttpServer())
+      .get('/api/boards/category?category=FREE&page=0&size=3')
+      .expect(400)
+      .expect((res) => {
+        const body = res.body as {
+          path: string;
+          timestamp: string;
+          error: string;
+          message: string;
+        };
+        expect(body).toHaveProperty('path');
+        expect(body).toHaveProperty('timestamp');
+        expect(body).toHaveProperty('error');
+        expect(body).toHaveProperty('message');
+        expect(body.message).toContain('page>=1, size>=1 이어야 합니다.');
+      });
+  });
+
+  it('/api/boards/category (GET) invalid size', async () => {
+    // size < 1이면 400 에러
+    return request(app.getHttpServer())
+      .get('/api/boards/category?category=FREE&page=1&size=0')
+      .expect(400)
+      .expect((res) => {
+        const body = res.body as {
+          path: string;
+          timestamp: string;
+          error: string;
+          message: string;
+        };
+        expect(body).toHaveProperty('path');
+        expect(body).toHaveProperty('timestamp');
+        expect(body).toHaveProperty('error');
+        expect(body).toHaveProperty('message');
+        expect(body.message).toContain('page>=1, size>=1 이어야 합니다.');
+      });
+  });
 });

@@ -85,6 +85,21 @@ export class BoardController {
     return result;
   }
 
+  @Get('category')
+  @HttpCode(200)
+  async getBoardsByCategory(
+    @Query('category') category: string,
+    @Query('page') page: number = 1,
+    @Query('size') size: number = 3,
+  ) {
+    const result = await this.boardService.getBoardsByCategory(
+      category,
+      page,
+      size,
+    );
+    return result;
+  }
+
   @Get(':boardId')
   @HttpCode(200)
   async getBoardDetail(
