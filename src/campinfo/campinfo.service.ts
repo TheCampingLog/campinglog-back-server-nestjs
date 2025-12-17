@@ -9,6 +9,8 @@ import { ConfigService } from '@nestjs/config';
 import { ResponseGetCampDetail } from './dto/response/response-get-camp-detail.dto';
 import { MissingCampApiKeyException } from './exceptions/missing-camp-api-key.exception';
 import { NoExistCampException } from './exceptions/no-exist-camp.exception';
+import { ResponseGetCampByKeywordList } from './dto/response/response-get-camp-by-keyword-list.dto';
+import { NoSearchResultException } from './exceptions/no-search-result.exception';
 
 // 예상 응답 타입 인터페이스 예시
 interface CampingApiResponse {
@@ -99,6 +101,46 @@ export class CampinfoService {
       throw new NoExistCampException('해당 게시글이 존재하지 않습니다.');
     }
     return list[0];
+  }
+
+  async getCampByKeyword(
+    keyword: string,
+    pageNo: number,
+    size: number,
+  ): Promise<ResponseGetCampWrapper<ResponseGetCampByKeywordList>> {
+    const params = {
+      serviceKey: this.serviceKey,
+      MobileOS: 'ETC',
+      MobileApp: 'CampingLog',
+      _type: 'json',
+      pageNo: pageNo,
+      numOfRows: size,
+      keyword: keyword,
+    };
+
+    const response: AxiosResponse<CampingApiResponse> =
+      await this.httpService.axiosRef.get('/searchList', { params });
+
+    const json = response.data;
+
+    const total = this.parseTotalCount(json);
+    const list = this.parseItems(json, ResponseGetCampByKeywordList);
+    if (list.length === 0) {
+      throw new NoSearchResultException(
+        '검색 결과가 없습니다: keyword=' + keyword,
+      );
+    }
+    const totalPage = Math.ceil(total / size);
+
+    const result: ResponseGetCampWrapper<ResponseGetCampByKeywordList> = {
+      totalCount: total,
+      items: list,
+      totalPage,
+      hasNext: pageNo < totalPage,
+      page: pageNo,
+      size,
+    };
+    return result;
   }
 
   parseItems<T>(json: CampingApiResponse, type: new () => T): T[] {

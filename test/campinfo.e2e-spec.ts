@@ -7,6 +7,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { ResponseGetCampWrapper } from 'src/campinfo/dto/response/response-get-camp-wrapper.dto';
 import { ResponseGetCampLatestList } from 'src/campinfo/dto/response/response-get-camp-latest-list.dto';
 import { ResponseGetCampDetail } from 'src/campinfo/dto/response/response-get-camp-detail.dto';
+import { ResponseGetCampByKeywordList } from 'src/campinfo/dto/response/response-get-camp-by-keyword-list.dto';
 
 describe('AppController (e2e)', () => {
   let app: INestApplication<App>;
@@ -32,7 +33,6 @@ describe('AppController (e2e)', () => {
   });
 
   it('/api/camps/list (GET) 200', () => {
-    //given
     const testValue = {
       number: 1,
       size: 4,
@@ -74,6 +74,48 @@ describe('AppController (e2e)', () => {
 
     await request(app.getHttpServer())
       .get(`/api/camps/detail/${mapX}/${mapY}`)
+      .expect(404);
+  });
+
+  it('/api/camps/keyword (GET) 200', async () => {
+    const testValue = {
+      keyword: '야영장',
+      pageNo: 1,
+      size: 4,
+    };
+
+    await request(app.getHttpServer())
+      .get('/api/camps/keyword')
+      .query(testValue)
+      .expect(200)
+      .expect((res) => {
+        const body = res.body as {
+          items: ResponseGetCampByKeywordList;
+          page: number;
+          size: number;
+          totalCount: number;
+          totalPage: number;
+          hasNext: boolean;
+        };
+        expect(body).toHaveProperty('items');
+        expect(body).toHaveProperty('totalCount');
+        expect(body).toHaveProperty('totalPage');
+        expect(body).toHaveProperty('page');
+        expect(body).toHaveProperty('size');
+        expect(body).toHaveProperty('hasNext');
+      });
+  });
+
+  it('/api/camps/keyword (GET) 404', async () => {
+    const testValue = {
+      keyword: '헬스',
+      pageNo: 1,
+      size: 4,
+    };
+
+    await request(app.getHttpServer())
+      .get('/api/camps/keyword')
+      .query(testValue)
       .expect(404);
   });
 });

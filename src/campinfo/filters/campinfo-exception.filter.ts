@@ -9,6 +9,7 @@ import {
 import { Request, Response } from 'express';
 import { NoExistCampException } from '../exceptions/no-exist-camp.exception';
 import { MissingCampApiKeyException } from '../exceptions/missing-camp-api-key.exception';
+import { NoSearchResultException } from '../exceptions/no-search-result.exception';
 @Catch()
 export class CampInfoExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(CampInfoExceptionFilter.name);
@@ -25,6 +26,7 @@ export class CampInfoExceptionFilter implements ExceptionFilter {
     // 404 - Not Found
     if (
       exception instanceof NoExistCampException ||
+      exception instanceof NoSearchResultException ||
       exception instanceof NotFoundException
     ) {
       status = HttpStatus.NOT_FOUND;
