@@ -49,7 +49,7 @@ export class BoardService {
     return board;
   }
   async addBoard(dto: RequestAddBoardDto): Promise<Board> {
-    const member = await this.getMemberOrThrow(dto.email);
+    const member = await this.getMemberOrThrow(dto.email as string);
 
     const board = this.boardRepository.create({
       title: dto.title,

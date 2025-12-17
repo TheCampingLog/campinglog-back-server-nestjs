@@ -50,7 +50,10 @@ export class Board {
   })
   createdAt: Date;
 
-  @ManyToOne(() => Member, (member) => member.boards, { nullable: false })
+  @ManyToOne(() => Member, (member) => member.boards, {
+    nullable: false,
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'email', referencedColumnName: 'email' })
   member: Member;
 

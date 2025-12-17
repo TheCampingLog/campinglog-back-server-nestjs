@@ -1,3 +1,4 @@
+import { Exclude } from 'class-transformer';
 import { IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
 
 export class RequestAddBoardDto {
@@ -19,7 +20,6 @@ export class RequestAddBoardDto {
   @IsString()
   boardImage?: string;
 
-  @IsNotEmpty()
-  @IsString()
-  email: string;
+  @Exclude()
+  email?: string;
 }
