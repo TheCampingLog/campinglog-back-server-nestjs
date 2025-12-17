@@ -2,15 +2,9 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { CampinfoService } from './campinfo.service';
 import { ConfigModule } from '@nestjs/config';
 import { HttpConfigModule } from '../config/http-config.module';
-
-// interface ApiParamters {
-//   serviceKey: string;
-//   MobileOS: string;
-//   MobileApp: string;
-//   _type: string;
-//   pageNo: number;
-//   numOfRows: number;
-// }
+import { ResponseGetCampByKeywordList } from './dto/response/response-get-camp-by-keyword-list.dto';
+import { NoSearchResultException } from './exceptions/no-search-result.exception';
+import { NoExistCampException } from './exceptions/no-exist-camp.exception';
 
 describe('CampinfoService', () => {
   let service: CampinfoService;
@@ -55,9 +49,33 @@ describe('CampinfoService', () => {
     //given
     const mapX = '127.263651312312123412312312312331223';
     const mapY = '37.0323408213123123123123';
-    //when
+    //when & then
     await expect(service.getCampDetail(mapX, mapY)).rejects.toThrow(
-      '해당 게시글이 존재하지 않습니다.',
+      NoExistCampException,
     );
+  });
+
+  it('캠핑장 키워드 검색 목록 조회 테스트', async () => {
+    //given
+    const pageNo = 1;
+    const size = 4;
+    const keyword = '야영장';
+    //when & then
+    const result: ResponseGetCampByKeywordList[] = (
+      await service.getCampByKeyword(keyword, pageNo, size)
+    ).items;
+    expect(result.length).toBeGreaterThan(0);
+    expect(result[0].facltNm).toContain('야영장');
+  });
+
+  it('캠핑장 키워드 검색 없는 목록 조회 테스트', async () => {
+    //given
+    const pageNo = 1;
+    const size = 4;
+    const keyword = '헬스';
+    //when & then
+    await expect(
+      service.getCampByKeyword(keyword, pageNo, size),
+    ).rejects.toThrow(NoSearchResultException);
   });
 });
