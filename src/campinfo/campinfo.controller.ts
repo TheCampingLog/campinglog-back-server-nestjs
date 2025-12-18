@@ -64,4 +64,10 @@ export class CampinfoController {
   ): Promise<ResponseGetCampWrapper<ResponseGetCampByKeywordList>> {
     return this.campinfoService.getCampByKeyword(keyword, pageNo, size);
   }
+
+  @Get('/reviews/board/rank')
+  @HttpCode(200)
+  async getBoardReviewRank(@Query('limit') limit: number = 3) {
+    return await this.campinfoService.getBoardReviewRank(limit);
+  }
 }
