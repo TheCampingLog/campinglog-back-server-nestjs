@@ -14,6 +14,11 @@ import { DuplicateNicknameException } from '../exceptions/duplicate-nickname.exc
 import { DuplicatePhoneNumberException } from '../exceptions/duplicate-phone-number.exception';
 import { ProfileImageNotFoundException } from '../exceptions/profile-image-not-found.exception';
 import { RequestSetProfileImageDto } from '../dto/request/request-set-profile-image.dto';
+import { ReqeustVerifyPasswordDto } from '../dto/request/request-verify-password.dto';
+import { RequestChangePasswordDto } from '../dto/request/request-change-password.dto';
+import { InvalidPasswordException } from '../exceptions/invalid-password.exception';
+import { PasswordMissMatchException } from '../exceptions/password-miss-match.exception';
+import * as bcrypt from 'bcrypt';
 
 describe('MemberService 단위테스트', () => {
   let module: TestingModule;
@@ -480,5 +485,77 @@ describe('MemberService 단위테스트', () => {
     });
 
     expect(result?.profileImage).toBeFalsy();
+  });
+
+  // 비밀번호 수정 전 비밀번호 확인
+  it('멤버의 비밀번호와 일치 ', async () => {
+    const testEmail = 'test@example.com';
+    const testRequest: ReqeustVerifyPasswordDto = {
+      password: 'test1234',
+    };
+
+    await memberService.verifyPassword(testEmail, testRequest);
+  });
+
+  // 비밀번호 수정 전 비밀번호 확인
+  it('멤버의 비밀번호와 불일치 ', async () => {
+    const testEmail = 'test@example.com';
+    const testRequest: ReqeustVerifyPasswordDto = {
+      password: 'invalid1234',
+    };
+
+    await expect(
+      memberService.verifyPassword(testEmail, testRequest),
+    ).rejects.toThrow(PasswordMissMatchException);
+  });
+
+  //비밀번호 수정
+  it('유효하지 않은 비밀번호면 PasswordMissMatch 예외를 던짐', async (): Promise<void> => {
+    //given
+    const testEmail = 'test@example.com';
+    const testRequest: RequestChangePasswordDto = {
+      currentPassword: 'invalid1234',
+      newPassword: 'test4321',
+    };
+
+    //when
+    await expect(
+      memberService.setPassword(testEmail, testRequest),
+    ).rejects.toThrow(PasswordMissMatchException);
+  });
+
+  //비밀번호 수정
+  it('새 비밀번호와 현재 비밀번호가 같으면  InvalidPassword 예외를 던짐', async (): Promise<void> => {
+    //given
+    const testEmail = 'test@example.com';
+    const testRequest: RequestChangePasswordDto = {
+      currentPassword: 'test1234',
+      newPassword: 'test1234',
+    };
+
+    //when
+    await expect(
+      memberService.setPassword(testEmail, testRequest),
+    ).rejects.toThrow(InvalidPasswordException);
+  });
+
+  //비밀번호 수정
+  it('비밀번호가 정상적으로 변경됨', async (): Promise<void> => {
+    //given
+    const testEmail = 'test@example.com';
+    const testRequest: RequestChangePasswordDto = {
+      currentPassword: 'test1234',
+      newPassword: 'test4321',
+    };
+
+    await memberService.setPassword(testEmail, testRequest);
+
+    const savedMember = await memberRepository.findOneBy({ email: testEmail });
+    const isSame = await bcrypt.compare(
+      testRequest.newPassword,
+      savedMember?.password as string,
+    );
+
+    expect(isSame).toBe(true);
   });
 });

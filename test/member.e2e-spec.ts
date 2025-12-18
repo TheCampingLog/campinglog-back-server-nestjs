@@ -20,6 +20,8 @@ import { ResponseGetMemberBoardListDto } from 'src/member/dto/response/response-
 import { ResponseGetMemberCommentListDto } from 'src/member/dto/response/response-get-member-comment-list.dto';
 import { RequestSetProfileImageDto } from 'src/member/dto/request/request-set-profile-image.dto';
 import { ResponseGetMemberProfileImageDto } from 'src/member/dto/response/response-get-member-profile-image.dto';
+import { ReqeustVerifyPasswordDto } from 'src/member/dto/request/request-verify-password.dto';
+import { RequestChangePasswordDto } from 'src/member/dto/request/request-change-password.dto';
 
 describe('MemberController (e2e)', () => {
   let app: INestApplication<App>;
@@ -593,5 +595,96 @@ describe('MemberController (e2e)', () => {
     });
 
     expect(result?.profileImage).toBeFalsy();
+  });
+
+  //마이페이지 수정 전 비밀번호 확인
+  it('/api/members/mypage/password/verify (POST) success', async () => {
+    //given
+    const testMember = await createAndSaveMember('test1@example.com');
+
+    const validMember = {
+      email: testMember.email,
+      password: 'test1234',
+    };
+
+    const loginResponse = await request(app.getHttpServer())
+      .post('/login')
+      .send(validMember)
+      .expect(200);
+
+    const accessToken = loginResponse.headers['authorization'];
+    expect(accessToken).toBeTruthy();
+
+    const testRequest: ReqeustVerifyPasswordDto = {
+      password: 'test1234',
+    };
+
+    //when & then
+    await request(app.getHttpServer())
+      .post('/api/members/mypage/password/verify')
+      .set('authorization', accessToken)
+      .send(testRequest)
+      .expect(200);
+  });
+
+  //마이페이지 수정 전 비밀번호 확인
+  it('/api/members/mypage/password/verify (POST) fail', async () => {
+    //given
+    const testMember = await createAndSaveMember('test1@example.com');
+
+    const validMember = {
+      email: testMember.email,
+      password: 'test1234',
+    };
+
+    const loginResponse = await request(app.getHttpServer())
+      .post('/login')
+      .send(validMember)
+      .expect(200);
+
+    const accessToken = loginResponse.headers['authorization'];
+    expect(accessToken).toBeTruthy();
+
+    const testRequest: ReqeustVerifyPasswordDto = {
+      password: 'invalid1234',
+    };
+
+    //when & then
+    await request(app.getHttpServer())
+      .post('/api/members/mypage/password/verify')
+      .set('authorization', accessToken)
+      .send(testRequest)
+      .expect(401);
+  });
+
+  //비밀번호 수정
+  it('/api/members/mypage/password (PUT) success', async () => {
+    //given
+    const testMember = await createAndSaveMember('test1@example.com');
+
+    const validMember = {
+      email: testMember.email,
+      password: 'test1234',
+    };
+
+    const loginResponse = await request(app.getHttpServer())
+      .post('/login')
+      .send(validMember)
+      .expect(200);
+
+    const accessToken = loginResponse.headers['authorization'];
+    expect(accessToken).toBeTruthy();
+
+    const testRequest: RequestChangePasswordDto = {
+      currentPassword: 'test1234',
+      newPassword: 'test4321',
+    };
+
+    //when & then
+    await request(app.getHttpServer())
+      .put('/api/members/mypage/password')
+      .set('authorization', accessToken)
+      .send(testRequest)
+      .expect(204);
   });
 });
