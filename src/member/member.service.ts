@@ -13,6 +13,9 @@ import {
 } from './interfaces/member.interface';
 import { ResponseGetMemberDto } from './dto/response/response-get-member.dto';
 import { MemberNotFoundException } from './exceptions/member-not-found.exception';
+import { DuplicatePhoneNumberException } from './exceptions/duplicate-phone-number.exception';
+import { DuplicateNicknameException } from './exceptions/duplicate-nickname.exception';
+import { RequestUpdateMemberDto } from './dto/request/request-update-member.dto';
 
 @Injectable()
 export class MemberService {
@@ -193,5 +196,46 @@ export class MemberService {
     };
 
     return responseGetMember;
+  }
+
+  // 마이 페이지 정보 수정
+  async setMember(email: string, requestUpdateMember: RequestUpdateMemberDto) {
+    const member = await this.memberRepository.findOneBy({ email });
+
+    if (!member) {
+      throw new MemberNotFoundException(email);
+    }
+
+    //닉네임 변경 시 중복 체크
+    if (
+      requestUpdateMember.nickname !== null &&
+      !(requestUpdateMember.nickname === member.nickname)
+    ) {
+      const isExistNickname = await this.memberRepository.existsBy({
+        nickname: requestUpdateMember.nickname,
+      });
+
+      if (isExistNickname) {
+        throw new DuplicateNicknameException();
+      }
+      member.nickname = requestUpdateMember.nickname;
+    }
+
+    //전화번호 변경 시 중복 체크
+    if (
+      requestUpdateMember.phoneNumber !== null &&
+      !(requestUpdateMember.phoneNumber === member.phoneNumber)
+    ) {
+      const isExistPhoneNumber = await this.memberRepository.existsBy({
+        phoneNumber: requestUpdateMember.phoneNumber,
+      });
+
+      if (isExistPhoneNumber) {
+        throw new DuplicatePhoneNumberException();
+      }
+      member.phoneNumber = requestUpdateMember.phoneNumber;
+    }
+
+    await this.memberRepository.save(member);
   }
 }

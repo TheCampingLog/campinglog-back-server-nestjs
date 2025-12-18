@@ -14,6 +14,7 @@ import { createTestMember } from 'src/member/test/fixtures/member.fixture';
 import { RankResult } from 'src/member/interfaces/member.interface';
 import * as crypto from 'crypto';
 import { ResponseGetMemberDto } from 'src/member/dto/response/response-get-member.dto';
+import { RequestUpdateMemberDto } from 'src/member/dto/request/request-update-member.dto';
 
 describe('MemberController (e2e)', () => {
   let app: INestApplication<App>;
@@ -241,5 +242,103 @@ describe('MemberController (e2e)', () => {
       .get('/api/members/mypage')
       .set('authorization', accessToken)
       .expect(404);
+  });
+
+  // 마이 페이지 정보 수정
+  it('/api/members/mypage (PUT) success', async () => {
+    const testUser: RequestAddMemberDto = {
+      email: `${crypto.randomInt(0, 10000000000)}@example.com`,
+      password: 'test1234',
+      name: 'tester',
+      nickname: 'nick',
+      birthday: '2000-06-21',
+      phoneNumber: '010-1234-5678',
+    };
+
+    await request(app.getHttpServer())
+      .post('/api/members')
+      .send(testUser)
+      .expect(201);
+
+    const validMember = {
+      email: testUser.email,
+      password: testUser.password,
+    };
+
+    const loginResponse = await request(app.getHttpServer())
+      .post('/login')
+      .send(validMember)
+      .expect(200);
+
+    const requestUpdateMemberDto: RequestUpdateMemberDto = {
+      nickname: '변경된 닉네임',
+      phoneNumber: '010-9876-4321',
+    };
+    //given
+    const accessToken = loginResponse.headers['authorization'];
+    expect(accessToken).toBeTruthy();
+
+    //when & then
+    await request(app.getHttpServer())
+      .put('/api/members/mypage')
+      .set('authorization', accessToken)
+      .send(requestUpdateMemberDto)
+      .expect(204);
+  });
+
+  // 마이 페이지 정보 수정
+  it('/api/members/mypage (PUT) fail', async () => {
+    const testUser: RequestAddMemberDto = {
+      email: `${crypto.randomInt(0, 10000000000)}@example.com`,
+      password: 'test1234',
+      name: 'tester',
+      nickname: 'nick',
+      birthday: '2000-06-21',
+      phoneNumber: '010-1234-5678',
+    };
+
+    await request(app.getHttpServer())
+      .post('/api/members')
+      .send(testUser)
+      .expect(201);
+
+    const duplicateNicknameMember: RequestAddMemberDto = {
+      email: `${crypto.randomInt(0, 10000000000)}@example.com`,
+      password: 'test1234',
+      name: 'tester',
+      nickname: '중복된 닉네임',
+      birthday: '2000-06-21',
+      phoneNumber: '010-1234-5678',
+    };
+
+    await request(app.getHttpServer())
+      .post('/api/members')
+      .send(duplicateNicknameMember)
+      .expect(201);
+
+    const validMember = {
+      email: testUser.email,
+      password: testUser.password,
+    };
+
+    const loginResponse = await request(app.getHttpServer())
+      .post('/login')
+      .send(validMember)
+      .expect(200);
+
+    const requestUpdateMemberDto: RequestUpdateMemberDto = {
+      nickname: '중복된 닉네임',
+      phoneNumber: '010-9876-4321',
+    };
+    //given
+    const accessToken = loginResponse.headers['authorization'];
+    expect(accessToken).toBeTruthy();
+
+    //when & then
+    await request(app.getHttpServer())
+      .put('/api/members/mypage')
+      .set('authorization', accessToken)
+      .send(requestUpdateMemberDto)
+      .expect(400);
   });
 });
