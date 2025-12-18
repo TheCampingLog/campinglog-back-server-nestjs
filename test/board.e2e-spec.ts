@@ -3,7 +3,7 @@ import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from './../src/app.module';
-import { RequestAddMemeberDto } from 'src/auth/dto/request/request-add-member.dto';
+import { RequestAddMemberDto } from 'src/auth/dto/request/request-add-member.dto';
 import { ValidationPipe } from '@nestjs/common';
 import { Member } from 'src/auth/entities/member.entity';
 import { Board } from 'src/board/entities/board.entity';
@@ -49,7 +49,7 @@ describe('BoardController (e2e)', () => {
     email: string,
     nickname?: string,
   ): Promise<{ email: string; accessToken: string }> => {
-    const testUser: RequestAddMemeberDto = {
+    const testUser: RequestAddMemberDto = {
       email,
       password: 'test1234',
       name: 'tester',

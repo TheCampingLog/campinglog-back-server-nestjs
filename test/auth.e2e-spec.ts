@@ -3,14 +3,18 @@ import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from './../src/app.module';
-import { RequestAddMemeberDto } from 'src/auth/dto/request/request-add-member.dto';
+import { RequestAddMemberDto } from 'src/auth/dto/request/request-add-member.dto';
 import { ValidationPipe } from '@nestjs/common';
 import cookieParser from 'cookie-parser';
+import * as crypto from 'crypto';
+import { Repository } from 'typeorm';
+import { Member } from 'src/auth/entities/member.entity';
 
 describe('AuthController (e2e)', () => {
   let app: INestApplication<App>;
+  let memberRepository: Repository<Member>;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
@@ -30,16 +34,22 @@ describe('AuthController (e2e)', () => {
     );
 
     await app.init();
+
+    memberRepository = moduleFixture.get('MemberRepository');
+  });
+
+  afterAll(async () => {
+    await app.close();
   });
 
   afterEach(async () => {
-    await app.close();
+    await memberRepository.clear();
   });
 
   it('/api/members (POST) success', () => {
     //given
-    const testUser: RequestAddMemeberDto = {
-      email: 'test@example.com',
+    const testUser: RequestAddMemberDto = {
+      email: `${crypto.randomInt(0, 10000000000)}@example.com`,
       password: 'test1234',
       name: 'choi',
       nickname: 'test',
@@ -57,8 +67,8 @@ describe('AuthController (e2e)', () => {
   it('/api/members (POST) validation fail', () => {
     //given
     const invalidName = 'choi'.repeat(30);
-    const testUser: RequestAddMemeberDto = {
-      email: 'test@example.com',
+    const testUser: RequestAddMemberDto = {
+      email: `${crypto.randomInt(0, 10000000000)}@example.com`,
       password: 'test1234',
       name: invalidName,
       nickname: 'test',
@@ -73,8 +83,8 @@ describe('AuthController (e2e)', () => {
   });
 
   it('/login (POST) login success', async () => {
-    const testUser: RequestAddMemeberDto = {
-      email: 'test@example.com',
+    const testUser: RequestAddMemberDto = {
+      email: `${crypto.randomInt(0, 10000000000)}@example.com`,
       password: 'test1234',
       name: 'tester',
       nickname: 'nick',
@@ -89,8 +99,8 @@ describe('AuthController (e2e)', () => {
 
     //given
     const validMember = {
-      email: 'test@example.com',
-      password: 'test1234',
+      email: testUser.email,
+      password: testUser.password,
     };
     //when && then
     const response = await request(app.getHttpServer())
@@ -105,7 +115,7 @@ describe('AuthController (e2e)', () => {
   it('/login (POST) login fail', async () => {
     //given
     const invalidMember = {
-      email: 'test@example.com',
+      email: `${crypto.randomInt(0, 10000000000)}@example.com`,
       password: 'test1234',
     };
 
@@ -116,8 +126,8 @@ describe('AuthController (e2e)', () => {
   });
 
   it('/api/members/refresh (GET) ok', async () => {
-    const testUser: RequestAddMemeberDto = {
-      email: 'test@example.com',
+    const testUser: RequestAddMemberDto = {
+      email: `${crypto.randomInt(0, 10000000000)}@example.com`,
       password: 'test1234',
       name: 'tester',
       nickname: 'nick',
@@ -131,8 +141,8 @@ describe('AuthController (e2e)', () => {
       .expect(201);
 
     const validMember = {
-      email: 'test@example.com',
-      password: 'test1234',
+      email: testUser.email,
+      password: testUser.password,
     };
 
     const loginResponse = await request(app.getHttpServer())
@@ -152,5 +162,84 @@ describe('AuthController (e2e)', () => {
       .expect(200);
     //then
     expect(refreshResponse.headers['authorization']).toBeTruthy();
+  });
+
+  // 회원 탈퇴
+  it('/api/members (DELETE) success', async () => {
+    const testUser: RequestAddMemberDto = {
+      email: `${crypto.randomInt(0, 10000000000)}@example.com`,
+      password: 'test1234',
+      name: 'tester',
+      nickname: 'nick',
+      birthday: '2000-06-21',
+      phoneNumber: '010-1234-5678',
+    };
+
+    await request(app.getHttpServer())
+      .post('/api/members')
+      .send(testUser)
+      .expect(201);
+
+    const validMember = {
+      email: testUser.email,
+      password: testUser.password,
+    };
+
+    const loginResponse = await request(app.getHttpServer())
+      .post('/login')
+      .send(validMember)
+      .expect(200);
+
+    //given
+    const accessToken = loginResponse.headers['authorization'];
+    expect(accessToken).toBeTruthy();
+
+    //when & then
+    await request(app.getHttpServer())
+      .delete('/api/members')
+      .set('authorization', accessToken)
+      .expect(204);
+  });
+
+  // 회원 탈퇴
+  it('/api/members (DELETE) fail', async () => {
+    const testUser: RequestAddMemberDto = {
+      email: `${crypto.randomInt(0, 10000000000)}@example.com`,
+      password: 'test1234',
+      name: 'tester',
+      nickname: 'nick',
+      birthday: '2000-06-21',
+      phoneNumber: '010-1234-5678',
+    };
+
+    await request(app.getHttpServer())
+      .post('/api/members')
+      .send(testUser)
+      .expect(201);
+
+    const validMember = {
+      email: testUser.email,
+      password: testUser.password,
+    };
+
+    const loginResponse = await request(app.getHttpServer())
+      .post('/login')
+      .send(validMember)
+      .expect(200);
+
+    //given
+    const accessToken = loginResponse.headers['authorization'];
+    expect(accessToken).toBeTruthy();
+
+    await request(app.getHttpServer())
+      .delete('/api/members')
+      .set('authorization', accessToken)
+      .expect(204);
+
+    //when & then
+    await request(app.getHttpServer())
+      .delete('/api/members')
+      .set('authorization', accessToken)
+      .expect(404);
   });
 });
