@@ -59,4 +59,26 @@ export class MemberController {
       requestUpdateMemberDto,
     );
   }
+
+  //내가 쓴 글 조회
+  @UseGuards(AccessAuthGuard)
+  @HttpCode(200)
+  @Get('/mypage/boards')
+  async getBoards(
+    @AccessMember() accessMember: JwtData,
+    @Query('pageNo') pageNo: number = 1,
+  ) {
+    return await this.memberService.getBoards(accessMember.email, pageNo);
+  }
+
+  //내가 작성한 댓글 리스트 조회
+  @UseGuards(AccessAuthGuard)
+  @HttpCode(200)
+  @Get('/mypage/comments')
+  async getComments(
+    @AccessMember() accessMember: JwtData,
+    @Query('pageNo') pageNo: number = 1,
+  ) {
+    return await this.memberService.getComments(accessMember.email, pageNo);
+  }
 }

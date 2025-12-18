@@ -9,18 +9,22 @@ import { Repository } from 'typeorm';
 import { Member } from 'src/auth/entities/member.entity';
 import { Board } from 'src/board/entities/board.entity';
 import { BoardLike } from 'src/board/entities/board-like.entity';
+import { Comment } from 'src/board/entities/comment.entity';
 import cookieParser from 'cookie-parser';
 import { createTestMember } from 'src/member/test/fixtures/member.fixture';
 import { RankResult } from 'src/member/interfaces/member.interface';
 import * as crypto from 'crypto';
 import { ResponseGetMemberDto } from 'src/member/dto/response/response-get-member.dto';
 import { RequestUpdateMemberDto } from 'src/member/dto/request/request-update-member.dto';
+import { ResponseGetMemberBoardListDto } from 'src/member/dto/response/response-get-member-board-list.dto';
+import { ResponseGetMemberCommentListDto } from 'src/member/dto/response/response-get-member-comment-list.dto';
 
 describe('MemberController (e2e)', () => {
   let app: INestApplication<App>;
   let memberRepository: Repository<Member>;
   let boardRepository: Repository<Board>;
   let boardLikeRepository: Repository<BoardLike>;
+  let commentRepository: Repository<Comment>;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -46,6 +50,7 @@ describe('MemberController (e2e)', () => {
     memberRepository = moduleFixture.get('MemberRepository');
     boardRepository = moduleFixture.get('BoardRepository');
     boardLikeRepository = moduleFixture.get('BoardLikeRepository');
+    commentRepository = moduleFixture.get('CommentRepository');
   });
   //회원 랭킹 조회
   const createTestBoard = (email: string, likeCount: number) => {
@@ -86,6 +91,20 @@ describe('MemberController (e2e)', () => {
     const testBoardLike = boardLikeRepository.create({ member, board });
     const resultBoardLike = await boardLikeRepository.save(testBoardLike);
     return resultBoardLike;
+  };
+
+  // 내가 쓴 댓글 리스트 조회
+  const createAndSaveComment = async (
+    member: Member,
+    board: Board,
+  ): Promise<Comment> => {
+    const testComment = commentRepository.create({
+      content: '테스트',
+      member,
+      board,
+    });
+    const resultComment = await commentRepository.save(testComment);
+    return resultComment;
   };
 
   afterEach(async () => {
@@ -340,5 +359,88 @@ describe('MemberController (e2e)', () => {
       .set('authorization', accessToken)
       .send(requestUpdateMemberDto)
       .expect(400);
+  });
+
+  //내가 쓴 글 조회
+  it('/api/members/mypage/boards (GET) success', async () => {
+    //given
+    const testMember1 = await createAndSaveMember('test1@example.com');
+
+    await Promise.all([
+      createAndSaveBoard(testMember1.email, 10),
+      createAndSaveBoard(testMember1.email, 10),
+      createAndSaveBoard(testMember1.email, 10),
+      createAndSaveBoard(testMember1.email, 10),
+      createAndSaveBoard(testMember1.email, 10),
+      createAndSaveBoard(testMember1.email, 10),
+      createAndSaveBoard(testMember1.email, 10),
+    ]);
+
+    const validMember = {
+      email: testMember1.email,
+      password: 'test1234',
+    };
+
+    const loginResponse = await request(app.getHttpServer())
+      .post('/login')
+      .send(validMember)
+      .expect(200);
+
+    const accessToken = loginResponse.headers['authorization'];
+    expect(accessToken).toBeTruthy();
+
+    //when
+    const response = await request(app.getHttpServer())
+      .get('/api/members/mypage/boards')
+      .query('pageNo=2')
+      .set('authorization', accessToken)
+      .expect(200);
+
+    const result = response.body as ResponseGetMemberBoardListDto;
+
+    expect(result.items.length).toBe(3);
+  });
+
+  //내가 작성한 댓글 리스트 조회
+  it('/api/members/mypage/comments (GET) success', async () => {
+    //given
+    //테스트 멤버 1개 생성
+    const testMember = await createAndSaveMember('test1@example.com');
+    //테스트 보드 1개 생성
+    const testBoard = await createAndSaveBoard(testMember.email, 10);
+    //테스트 댓글 7개 생성
+    await Promise.all([
+      createAndSaveComment(testMember, testBoard),
+      createAndSaveComment(testMember, testBoard),
+      createAndSaveComment(testMember, testBoard),
+      createAndSaveComment(testMember, testBoard),
+      createAndSaveComment(testMember, testBoard),
+      createAndSaveComment(testMember, testBoard),
+      createAndSaveComment(testMember, testBoard),
+    ]);
+
+    const validMember = {
+      email: testMember.email,
+      password: 'test1234',
+    };
+
+    const loginResponse = await request(app.getHttpServer())
+      .post('/login')
+      .send(validMember)
+      .expect(200);
+
+    const accessToken = loginResponse.headers['authorization'];
+    expect(accessToken).toBeTruthy();
+
+    //when
+    const response = await request(app.getHttpServer())
+      .get('/api/members/mypage/comments')
+      .query('pageNo=2')
+      .set('authorization', accessToken)
+      .expect(200);
+
+    const result = response.body as ResponseGetMemberCommentListDto;
+
+    expect(result.items.length).toBe(3);
   });
 });

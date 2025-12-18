@@ -19,6 +19,7 @@ describe('MemberService 단위테스트', () => {
   let memberRepository: Repository<Member>;
   let boardRepository: Repository<Board>;
   let boardLikeRepository: Repository<BoardLike>;
+  let commentRepository: Repository<Comment>;
 
   beforeAll(async () => {
     module = await Test.createTestingModule({
@@ -36,6 +37,9 @@ describe('MemberService 단위테스트', () => {
     boardRepository = module.get<Repository<Board>>(getRepositoryToken(Board));
     boardLikeRepository = module.get<Repository<BoardLike>>(
       getRepositoryToken(BoardLike),
+    );
+    commentRepository = module.get<Repository<Comment>>(
+      getRepositoryToken(Comment),
     );
   });
 
@@ -91,6 +95,20 @@ describe('MemberService 단위테스트', () => {
     const testBoardLike = boardLikeRepository.create({ member, board });
     const resultBoardLike = await boardLikeRepository.save(testBoardLike);
     return resultBoardLike;
+  };
+
+  // 내가 쓴 댓글 리스트 조회
+  const createAndSaveComment = async (
+    member: Member,
+    board: Board,
+  ): Promise<Comment> => {
+    const testComment = commentRepository.create({
+      content: '테스트',
+      member,
+      board,
+    });
+    const resultComment = await commentRepository.save(testComment);
+    return resultComment;
   };
 
   it('DB에 존재하는 이메일이면 멤버를 반환', async (): Promise<void> => {
@@ -344,5 +362,51 @@ describe('MemberService 단위테스트', () => {
     await expect(
       memberService.setMember('test@example.com', testRequest),
     ).rejects.toThrow(DuplicatePhoneNumberException);
+  });
+
+  //내가 쓴 글 조회
+  it('내가 쓴 7개의 게시글을 2페이지 3개 반환', async () => {
+    //given
+    //테스트 멤버 2개 생성
+    const testMember1 = await createAndSaveMember('test1@example.com');
+    //테스트 보드 2개 생성
+    await Promise.all([
+      createAndSaveBoard(testMember1.email, 10),
+      createAndSaveBoard(testMember1.email, 10),
+      createAndSaveBoard(testMember1.email, 10),
+      createAndSaveBoard(testMember1.email, 10),
+      createAndSaveBoard(testMember1.email, 10),
+      createAndSaveBoard(testMember1.email, 10),
+      createAndSaveBoard(testMember1.email, 10),
+    ]);
+
+    const result = await memberService.getBoards(testMember1.email, 1);
+
+    expect(result.first).toBeTruthy();
+    expect(result.totalPages).toBe(2);
+  });
+
+  //내가 작성한 댓글 리스트 조회
+  it('내가 쓴 7개의 댓글을 2페이지 3개 반환', async () => {
+    //given
+    //테스트 멤버 1개 생성
+    const testMember = await createAndSaveMember('test1@example.com');
+    //테스트 보드 1개 생성
+    const testBoard = await createAndSaveBoard(testMember.email, 10);
+    //테스트 댓글 7개 생성
+    await Promise.all([
+      createAndSaveComment(testMember, testBoard),
+      createAndSaveComment(testMember, testBoard),
+      createAndSaveComment(testMember, testBoard),
+      createAndSaveComment(testMember, testBoard),
+      createAndSaveComment(testMember, testBoard),
+      createAndSaveComment(testMember, testBoard),
+      createAndSaveComment(testMember, testBoard),
+    ]);
+
+    const result = await memberService.getComments(testMember.email, 1);
+
+    expect(result.first).toBeTruthy();
+    expect(result.totalPages).toBe(2);
   });
 });
