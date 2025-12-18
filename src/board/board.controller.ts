@@ -19,6 +19,7 @@ import { AccessAuthGuard } from 'src/auth/passport/access-auth.guard';
 import { AccessMember } from 'src/auth/decorators/jwt-member.decorator';
 import { type JwtData } from 'src/auth/interfaces/jwt.interface';
 import { HttpCode } from '@nestjs/common/decorators/http/http-code.decorator';
+import { RequestAddCommentDto } from './dto/request/request-add-comment.dto';
 
 @Controller('api/boards')
 @UseFilters(BoardExceptionFilter)
@@ -111,5 +112,23 @@ export class BoardController {
       userEmail,
     );
     return boardDetail;
+  }
+
+  @UseGuards(AccessAuthGuard)
+  @HttpCode(201)
+  @Post(':boardId/comment')
+  async addComment(
+    @Param('boardId') boardId: string,
+    @Body() dto: RequestAddCommentDto,
+    @AccessMember() accessMember: JwtData,
+  ) {
+    dto.boardId = boardId;
+    dto.email = accessMember.email;
+    const saved = await this.boardService.addComment(boardId, dto);
+    return {
+      message: '댓글이 등록되었습니다.',
+      boardId: boardId,
+      commentId: saved.commentId,
+    };
   }
 }

@@ -14,6 +14,9 @@ import { ILike } from 'typeorm';
 import { ResponseGetBoardDetailDto } from './dto/response/response-get-board-detail.dto';
 import { BoardLike } from './entities/board-like.entity';
 import { ResponseGetBoardByCategoryWrapper } from './dto/response/response-get-board-by-category-wrapper.dto';
+import { Comment } from './entities/comment.entity';
+import { RequestAddCommentDto } from './dto/request/request-add-comment.dto';
+import { CommentNotFoundException } from './exceptions/comment-not-found.exception';
 
 @Injectable()
 export class BoardService {
@@ -24,6 +27,8 @@ export class BoardService {
     private readonly memberRepository: Repository<Member>,
     @InjectRepository(BoardLike)
     private readonly boardLikeRepository: Repository<BoardLike>,
+    @InjectRepository(Comment)
+    private readonly commentRepository: Repository<Comment>,
   ) {}
 
   private async getMemberOrThrow(email: string): Promise<Member> {
@@ -49,6 +54,20 @@ export class BoardService {
 
     return board;
   }
+
+  private async getCommentOrThrow(commentId: string): Promise<Comment> {
+    const comment = await this.commentRepository.findOne({
+      where: { commentId },
+      relations: ['member', 'board'],
+    });
+
+    if (!comment) {
+      throw new CommentNotFoundException('댓글을 찾을 수 없습니다.');
+    }
+
+    return comment;
+  }
+
   async addBoard(dto: RequestAddBoardDto): Promise<Board> {
     const member = await this.getMemberOrThrow(dto.email as string);
 
@@ -254,5 +273,30 @@ export class BoardService {
       isFirst: page === 1,
       isLast: page >= totalPages,
     };
+  }
+
+  async addComment(
+    boardId: string,
+    dto: RequestAddCommentDto,
+  ): Promise<Comment> {
+    const board = await this.getBoardOrThrow(boardId);
+
+    if (!dto.email) {
+      throw new InvalidBoardRequestException('이메일이 필요합니다.');
+    }
+    const member = await this.getMemberOrThrow(dto.email);
+
+    const comment = this.commentRepository.create({
+      content: dto.content,
+      board,
+      member,
+    });
+
+    const savedComment = await this.commentRepository.save(comment);
+
+    board.commentCount += 1;
+    await this.boardRepository.save(board);
+
+    return savedComment;
   }
 }
