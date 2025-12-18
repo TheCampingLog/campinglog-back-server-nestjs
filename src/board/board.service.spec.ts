@@ -1378,4 +1378,131 @@ describe('BoardService', () => {
       '게시글을 찾을 수 없습니다.',
     );
   });
+
+  it('좋아요 추가 - 성공', async () => {
+    // given
+    const member = memberRepository.create({
+      email: 'likeadd@test.com',
+      password: 'password123',
+      nickname: 'likeAddTester',
+      name: '좋아요추가',
+      birthday: '1990-01-01',
+      phoneNumber: '010-1234-5678',
+    });
+    await memberRepository.save(member);
+
+    const board = boardRepository.create({
+      boardId: 'like-add-board',
+      title: '좋아요 추가 테스트',
+      content: '내용',
+      categoryName: '자유',
+      member,
+      likeCount: 0,
+    });
+    await boardRepository.save(board);
+
+    // when
+    const result = await service.addLike(board.boardId, {
+      email: member.email,
+    });
+
+    // then
+    expect(result.isLiked).toBe(true);
+    expect(result.likeCount).toBe(1);
+
+    // 데이터베이스 확인
+    const updatedBoard = await boardRepository.findOne({
+      where: { boardId: board.boardId },
+    });
+    expect(updatedBoard).toBeDefined();
+    expect(updatedBoard!.likeCount).toBe(1);
+
+    const boardLike = await boardLikeRepository.findOne({
+      where: {
+        board: { id: board.id },
+        member: { email: member.email },
+      },
+    });
+    expect(boardLike).toBeDefined();
+  });
+
+  it('좋아요 추가 - 이미 좋아요를 누른 경우', async () => {
+    // given
+    const member = memberRepository.create({
+      email: 'likealready@test.com',
+      password: 'password123',
+      nickname: 'likeAlreadyTester',
+      name: '좋아요중복',
+      birthday: '1990-01-01',
+      phoneNumber: '010-1234-5678',
+    });
+    await memberRepository.save(member);
+
+    const board = boardRepository.create({
+      boardId: 'like-already-board',
+      title: '좋아요 중복 테스트',
+      content: '내용',
+      categoryName: '자유',
+      member,
+      likeCount: 1,
+    });
+    await boardRepository.save(board);
+
+    const boardLike = boardLikeRepository.create({
+      board,
+      member,
+    });
+    await boardLikeRepository.save(boardLike);
+
+    // when & then
+    await expect(
+      service.addLike(board.boardId, { email: member.email }),
+    ).rejects.toThrow('이미 좋아요를 누른 게시글입니다.');
+  });
+
+  it('좋아요 추가 - 게시글 없음', async () => {
+    // given
+    const member = memberRepository.create({
+      email: 'likenoboard@test.com',
+      password: 'password123',
+      nickname: 'likeNoBoardTester',
+      name: '게시글없음',
+      birthday: '1990-01-01',
+      phoneNumber: '010-1234-5678',
+    });
+    await memberRepository.save(member);
+
+    // when & then
+    await expect(
+      service.addLike('invalid-board-id', { email: member.email }),
+    ).rejects.toThrow('게시글을 찾을 수 없습니다.');
+  });
+
+  it('좋아요 추가 - 회원 없음', async () => {
+    // given
+    const member = memberRepository.create({
+      email: 'likeboardonly@test.com',
+      password: 'password123',
+      nickname: 'likeBoardOnlyTester',
+      name: '게시글만있음',
+      birthday: '1990-01-01',
+      phoneNumber: '010-1234-5678',
+    });
+    await memberRepository.save(member);
+
+    const board = boardRepository.create({
+      boardId: 'like-nomember-board',
+      title: '회원 없음 테스트',
+      content: '내용',
+      categoryName: '자유',
+      member,
+      likeCount: 0,
+    });
+    await boardRepository.save(board);
+
+    // when & then
+    await expect(
+      service.addLike(board.boardId, { email: 'invalid@email.com' }),
+    ).rejects.toThrow('회원을 찾을 수 없습니다.');
+  });
 });
