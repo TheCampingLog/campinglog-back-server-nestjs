@@ -35,4 +35,12 @@ export class MemberController {
   async getWeeklyRanking(@Query('memberNo') memberNo: number) {
     return await this.memberService.updateRankWeekly(memberNo);
   }
+
+  //마이 페이지 조회
+  @UseGuards(AccessAuthGuard)
+  @HttpCode(200)
+  @Get('/mypage')
+  async getMember(@AccessMember() accessMember: JwtData) {
+    return await this.memberService.getMember(accessMember.email);
+  }
 }

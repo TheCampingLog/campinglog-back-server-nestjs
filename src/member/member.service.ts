@@ -11,6 +11,8 @@ import {
   RankResult,
   WeeklyLikeAggRow,
 } from './interfaces/member.interface';
+import { ResponseGetMemberDto } from './dto/response/response-get-member.dto';
+import { MemberNotFoundException } from './exceptions/member-not-found.exception';
 
 @Injectable()
 export class MemberService {
@@ -168,5 +170,28 @@ export class MemberService {
     result.setHours(0, 0, 0, 0);
 
     return result;
+  }
+
+  // 마이페이지 조회
+  async getMember(email: string): Promise<ResponseGetMemberDto> {
+    const member = await this.memberRepository.findOneBy({ email });
+
+    if (!member) {
+      throw new MemberNotFoundException(email);
+    }
+
+    const responseGetMember: ResponseGetMemberDto = {
+      email: member.email,
+      name: member.name,
+      nickname: member.nickname,
+      birthday: member.birthday,
+      phoneNumber: member.phoneNumber,
+      profileImage: member.profileImage as string,
+      role: member.role as string,
+      memberGrade: member.memberGrade as string,
+      joinDate: member.joinDate as Date,
+    };
+
+    return responseGetMember;
   }
 }

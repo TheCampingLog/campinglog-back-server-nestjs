@@ -1,3 +1,4 @@
+import { RequestAddMemberDto } from 'src/auth/dto/request/request-add-member.dto';
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
@@ -11,6 +12,8 @@ import { BoardLike } from 'src/board/entities/board-like.entity';
 import cookieParser from 'cookie-parser';
 import { createTestMember } from 'src/member/test/fixtures/member.fixture';
 import { RankResult } from 'src/member/interfaces/member.interface';
+import * as crypto from 'crypto';
+import { ResponseGetMemberDto } from 'src/member/dto/response/response-get-member.dto';
 
 describe('MemberController (e2e)', () => {
   let app: INestApplication<App>;
@@ -156,5 +159,87 @@ describe('MemberController (e2e)', () => {
     //then
     expect(result.length).toBe(2);
     expect(result[0].email).toBe('test3@example.com');
+  });
+
+  // 마이 페이지 조회
+  it('/api/members/mypage (GET) success', async () => {
+    const testUser: RequestAddMemberDto = {
+      email: `${crypto.randomInt(0, 10000000000)}@example.com`,
+      password: 'test1234',
+      name: 'tester',
+      nickname: 'nick',
+      birthday: '2000-06-21',
+      phoneNumber: '010-1234-5678',
+    };
+
+    await request(app.getHttpServer())
+      .post('/api/members')
+      .send(testUser)
+      .expect(201);
+
+    const validMember = {
+      email: testUser.email,
+      password: testUser.password,
+    };
+
+    const loginResponse = await request(app.getHttpServer())
+      .post('/login')
+      .send(validMember)
+      .expect(200);
+
+    //given
+    const accessToken = loginResponse.headers['authorization'];
+    expect(accessToken).toBeTruthy();
+
+    //when & then
+    const response = await request(app.getHttpServer())
+      .get('/api/members/mypage')
+      .set('authorization', accessToken)
+      .expect(200);
+
+    const result = response.body as ResponseGetMemberDto;
+    expect(result.email).toBe(testUser.email);
+  });
+
+  // 마이 페이지 조회
+  it('/api/members/mypage (GET) fail', async () => {
+    const testUser: RequestAddMemberDto = {
+      email: `${crypto.randomInt(0, 10000000000)}@example.com`,
+      password: 'test1234',
+      name: 'tester',
+      nickname: 'nick',
+      birthday: '2000-06-21',
+      phoneNumber: '010-1234-5678',
+    };
+
+    await request(app.getHttpServer())
+      .post('/api/members')
+      .send(testUser)
+      .expect(201);
+
+    const validMember = {
+      email: testUser.email,
+      password: testUser.password,
+    };
+
+    const loginResponse = await request(app.getHttpServer())
+      .post('/login')
+      .send(validMember)
+      .expect(200);
+
+    //given
+    const accessToken = loginResponse.headers['authorization'];
+    expect(accessToken).toBeTruthy();
+
+    await request(app.getHttpServer())
+      .delete('/api/members')
+      .set('authorization', accessToken)
+      .expect(204);
+
+    //when & then
+    await request(app.getHttpServer())
+      .get('/api/members/mypage')
+      .set('authorization', accessToken)
+      .expect(404);
   });
 });
