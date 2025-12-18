@@ -1,9 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import { Member, MemberGrade } from '../auth/entities/member.entity';
+import { Board } from 'src/board/entities/board.entity';
+import { BoardLike } from 'src/board/entities/board-like.entity';
+import { Comment } from 'src/board/entities/comment.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { Logger } from '@nestjs/common';
-import { MemberLikeSummary } from './interfaces/member.interface';
+import {
+  MemberLikeSummary,
+  RankResult,
+  WeeklyLikeAggRow,
+} from './interfaces/member.interface';
 
 @Injectable()
 export class MemberService {
@@ -11,6 +18,12 @@ export class MemberService {
   constructor(
     @InjectRepository(Member)
     private readonly memberRepository: Repository<Member>,
+    @InjectRepository(Board)
+    private readonly boardRepository: Repository<Board>,
+    @InjectRepository(BoardLike)
+    private readonly boardLikeRepository: Repository<BoardLike>,
+    @InjectRepository(Comment)
+    private readonly commentRepository: Repository<Comment>,
   ) {}
 
   async getMemberByEmail(email: string): Promise<Member | null> {
@@ -82,5 +95,78 @@ export class MemberService {
       memberId: r.memberId,
       totalLike: Number(r.totalLike),
     }));
+  }
+
+  //회원 랭킹 조회
+  async findTopMembersByLikeCreatedAt(
+    start: Date,
+    end: Date,
+  ): Promise<WeeklyLikeAggRow[]> {
+    const results = await this.boardLikeRepository
+      .createQueryBuilder('l')
+      .innerJoin('l.board', 'b')
+      .innerJoin('b.member', 'm')
+      .select('m.email', 'email')
+      .addSelect('m.nickname', 'nickname')
+      .addSelect('m.profileImage', 'profileImage')
+      .addSelect('m.memberGrade', 'memberGrade')
+      .addSelect('COUNT(l.id)', 'totalLikes')
+      .where('l.createdAt >= :start', { start })
+      .andWhere('l.createdAt < :end', { end })
+      .groupBy('m.email')
+      .addGroupBy('m.nickname')
+      .addGroupBy('m.profileImage')
+      .addGroupBy('m.memberGrade')
+      .orderBy('COUNT(l.id)', 'DESC')
+      .getRawMany<{
+        email: string;
+        nickname: string;
+        profileImage: string;
+        memberGrade: string;
+        totalLikes: string;
+      }>();
+
+    return results.map((r) => ({
+      email: r.email,
+      nickname: r.nickname,
+      profileImage: r.profileImage,
+      memberGrade: r.memberGrade,
+      totalLikes: Number(r.totalLikes),
+    }));
+  }
+
+  //회원 랭킹 조회
+  async updateRankWeekly(memberNo: number): Promise<RankResult[]> {
+    const today = new Date();
+    const thisThursday = this.getThisThursday(today);
+    const nextThursday = new Date(thisThursday);
+    nextThursday.setDate(nextThursday.getDate() + 7);
+
+    const rows = await this.findTopMembersByLikeCreatedAt(
+      thisThursday,
+      nextThursday,
+    );
+
+    return rows.slice(0, memberNo).map((r, i) => ({
+      rank: i + 1,
+      email: r.email,
+      nickname: r.nickname,
+      profileImage: r.profileImage,
+      totalLikes: r.totalLikes,
+      memberGrade: r.memberGrade,
+    }));
+  }
+
+  //회원 랭킹 조회
+  private getThisThursday(date: Date): Date {
+    const result = new Date(date);
+    const day = result.getDay();
+    const thursday = 4;
+
+    const diff = day >= thursday ? day - thursday : day + 7 - thursday;
+    result.setDate(result.getDate() - diff);
+    result.setHours(0, 0, 0, 0);
+
+    return result;
   }
 }

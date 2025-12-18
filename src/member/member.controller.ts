@@ -1,4 +1,11 @@
-import { Controller, Get, Put, HttpCode, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Put,
+  HttpCode,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { MemberService } from './member.service';
 import { AccessAuthGuard } from 'src/auth/passport/access-auth.guard';
 import type { JwtData } from 'src/auth/interfaces/jwt.interface';
@@ -20,5 +27,12 @@ export class MemberController {
   async setMemberGrade() {
     const changed = await this.memberService.updateGradeWeekly();
     return { changed: changed };
+  }
+
+  //회원 랭킹 조회
+  @HttpCode(200)
+  @Get('/rank')
+  async getWeeklyRanking(@Query('memberNo') memberNo: number) {
+    return await this.memberService.updateRankWeekly(memberNo);
   }
 }

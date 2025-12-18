@@ -9,7 +9,8 @@ import { Member } from 'src/auth/entities/member.entity';
 import { Board } from 'src/board/entities/board.entity';
 import { BoardLike } from 'src/board/entities/board-like.entity';
 import cookieParser from 'cookie-parser';
-import { Comment } from 'src/board/entities/comment.entity';
+import { createTestMember } from 'src/member/test/fixtures/member.fixture';
+import { RankResult } from 'src/member/interfaces/member.interface';
 
 describe('MemberController (e2e)', () => {
   let app: INestApplication<App>;
@@ -42,6 +43,46 @@ describe('MemberController (e2e)', () => {
     boardRepository = moduleFixture.get('BoardRepository');
     boardLikeRepository = moduleFixture.get('BoardLikeRepository');
   });
+  //회원 랭킹 조회
+  const createTestBoard = (email: string, likeCount: number) => {
+    const board = boardRepository.create({
+      title: '첫번째 게시판',
+      content: '내용',
+      categoryName: '자유',
+      likeCount: likeCount,
+      member: { email: email } as Member,
+    });
+
+    return board;
+  };
+
+  //회원 랭킹 조회
+  const createAndSaveMember = async (email: string): Promise<Member> => {
+    const testMember = await createTestMember(email);
+    const member = memberRepository.create(testMember);
+    const resultMember = await memberRepository.save(member);
+    return resultMember;
+  };
+
+  //회원 랭킹 조회
+  const createAndSaveBoard = async (
+    email: string,
+    likeCount: number,
+  ): Promise<Board> => {
+    const testBoard = createTestBoard(email, likeCount);
+    const resultBoard = await boardRepository.save(testBoard);
+    return resultBoard;
+  };
+
+  //회원 랭킹 조회
+  const createAndSaveBoardLike = async (
+    member: Member,
+    board: Board,
+  ): Promise<BoardLike> => {
+    const testBoardLike = boardLikeRepository.create({ member, board });
+    const resultBoardLike = await boardLikeRepository.save(testBoardLike);
+    return resultBoardLike;
+  };
 
   afterEach(async () => {
     await memberRepository.clear();
@@ -67,5 +108,53 @@ describe('MemberController (e2e)', () => {
     const result = response.body as UpdateGradeResponse;
 
     expect(result.changed).toBe(0);
+  });
+
+  // 회원 랭킹 조회
+  it('/api/members/rank (GET) success', async () => {
+    //given
+    //테스트 멤버 6개 생성
+    const [
+      testMember1,
+      testMember2,
+      testMember3,
+      testMember4,
+      testMember5,
+      testMember6,
+    ] = await Promise.all([
+      createAndSaveMember('test1@example.com'),
+      createAndSaveMember('test2@example.com'),
+      createAndSaveMember('test3@example.com'),
+      createAndSaveMember('test4@example.com'),
+      createAndSaveMember('test5@example.com'),
+      createAndSaveMember('test6@example.com'),
+    ]);
+    //테스트 보드 3개 생성
+    const [testBoard1, testBoard2, testBoard3] = await Promise.all([
+      createAndSaveBoard(testMember1.email, 10),
+      createAndSaveBoard(testMember2.email, 10),
+      createAndSaveBoard(testMember3.email, 10),
+    ]);
+    //테스트 좋아요 (testMember1: 1개, testMember2: 2개, testMember3: 3개)
+    await Promise.all([
+      createAndSaveBoardLike(testMember2, testBoard1),
+      createAndSaveBoardLike(testMember1, testBoard2),
+      createAndSaveBoardLike(testMember3, testBoard2),
+      createAndSaveBoardLike(testMember4, testBoard3),
+      createAndSaveBoardLike(testMember5, testBoard3),
+      createAndSaveBoardLike(testMember6, testBoard3),
+    ]);
+
+    //when
+    const response = await request(app.getHttpServer())
+      .get('/api/members/rank')
+      .query('memberNo=2')
+      .expect(200);
+
+    const result = response.body as RankResult[];
+
+    //then
+    expect(result.length).toBe(2);
+    expect(result[0].email).toBe('test3@example.com');
   });
 });
