@@ -21,6 +21,7 @@ import { type JwtData } from 'src/auth/interfaces/jwt.interface';
 import { HttpCode } from '@nestjs/common/decorators/http/http-code.decorator';
 import { RequestAddCommentDto } from './dto/request/request-add-comment.dto';
 import { ResponseGetCommentsWrapperDto } from './dto/response/response-get-comments-wrapper.dto';
+import { RequestSetCommentDto } from './dto/request/request-set-comment.dto';
 
 @Controller('api/boards')
 @UseFilters(BoardExceptionFilter)
@@ -141,5 +142,24 @@ export class BoardController {
     @Query('size') size: number = 3,
   ): Promise<ResponseGetCommentsWrapperDto> {
     return await this.boardService.getComments(boardId, page, size);
+  }
+
+  @UseGuards(AccessAuthGuard)
+  @Put(':boardId/comments/:commentId')
+  @HttpCode(200)
+  async updateComment(
+    @Param('boardId') boardId: string,
+    @Param('commentId') commentId: string,
+    @Body() dto: RequestSetCommentDto,
+    @AccessMember() accessMember: JwtData,
+  ) {
+    dto.boardId = boardId;
+    dto.commentId = commentId;
+    dto.email = accessMember.email;
+    await this.boardService.updateComment(boardId, commentId, dto);
+    return {
+      message: '댓글이 수정되었습니다.',
+      status: 'success',
+    };
   }
 }

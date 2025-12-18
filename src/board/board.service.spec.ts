@@ -971,4 +971,179 @@ describe('BoardService', () => {
       'page>=1, size>=1 이어야 합니다.',
     );
   });
+
+  it('댓글 수정 - 성공', async () => {
+    // given
+    const member = memberRepository.create({
+      email: 'updateTest@test.com',
+      password: 'password123',
+      nickname: 'updateTester',
+      name: '수정테스터',
+      birthday: '1990-01-01',
+      phoneNumber: '010-1234-5678',
+    });
+    await memberRepository.save(member);
+
+    const board = boardRepository.create({
+      boardId: 'update-board-id',
+      title: '테스트 게시글',
+      content: '테스트 내용',
+      categoryName: '자유',
+      member,
+    });
+    await boardRepository.save(board);
+
+    const comment = commentRepository.create({
+      content: '원래 댓글 내용',
+      board,
+      member,
+    });
+    await commentRepository.save(comment);
+
+    const dto = {
+      content: '수정된 댓글 내용',
+      boardId: board.boardId,
+      commentId: comment.commentId,
+      email: member.email,
+    };
+
+    // when
+    await service.updateComment(board.boardId, comment.commentId, dto);
+
+    // then
+    const updated = await commentRepository.findOne({
+      where: { commentId: comment.commentId },
+    });
+    expect(updated?.content).toBe('수정된 댓글 내용');
+  });
+
+  it('댓글 수정 - 존재하지 않는 게시글', async () => {
+    // when & then
+    await expect(
+      service.updateComment('invalid-board-id', 'comment-id', {
+        content: '수정 내용',
+      }),
+    ).rejects.toThrow('게시글을 찾을 수 없습니다.');
+  });
+
+  it('댓글 수정 - 존재하지 않는 댓글', async () => {
+    // given
+    const member = memberRepository.create({
+      email: 'updateTest2@test.com',
+      password: 'password123',
+      nickname: 'updateTester2',
+      name: '수정테스터2',
+      birthday: '1990-01-01',
+      phoneNumber: '010-1234-5678',
+    });
+    await memberRepository.save(member);
+
+    const board = boardRepository.create({
+      boardId: 'update-board-id-2',
+      title: '테스트 게시글',
+      content: '테스트 내용',
+      categoryName: '자유',
+      member,
+    });
+    await boardRepository.save(board);
+
+    // when & then
+    await expect(
+      service.updateComment(board.boardId, 'invalid-comment-id', {
+        content: '수정 내용',
+      }),
+    ).rejects.toThrow('댓글을 찾을 수 없습니다.');
+  });
+
+  it('댓글 수정 - 다른 게시글의 댓글', async () => {
+    // given
+    const member = memberRepository.create({
+      email: 'updateTest3@test.com',
+      password: 'password123',
+      nickname: 'updateTester3',
+      name: '수정테스터3',
+      birthday: '1990-01-01',
+      phoneNumber: '010-1234-5678',
+    });
+    await memberRepository.save(member);
+
+    const board1 = boardRepository.create({
+      boardId: 'board-1',
+      title: '게시글 1',
+      content: '내용 1',
+      categoryName: '자유',
+      member,
+    });
+    await boardRepository.save(board1);
+
+    const board2 = boardRepository.create({
+      boardId: 'board-2',
+      title: '게시글 2',
+      content: '내용 2',
+      categoryName: '자유',
+      member,
+    });
+    await boardRepository.save(board2);
+
+    const comment = commentRepository.create({
+      content: '댓글 내용',
+      board: board1,
+      member,
+    });
+    await commentRepository.save(comment);
+
+    // when & then
+    await expect(
+      service.updateComment(board2.boardId, comment.commentId, {
+        content: '수정 내용',
+      }),
+    ).rejects.toThrow('해당 게시글에 속한 댓글이 아닙니다.');
+  });
+
+  it('댓글 수정 - 본인 댓글이 아님', async () => {
+    // given
+    const member1 = memberRepository.create({
+      email: 'owner@test.com',
+      password: 'password123',
+      nickname: 'owner',
+      name: '소유자',
+      birthday: '1990-01-01',
+      phoneNumber: '010-1234-5678',
+    });
+    await memberRepository.save(member1);
+
+    const member2 = memberRepository.create({
+      email: 'other@test.com',
+      password: 'password123',
+      nickname: 'other',
+      name: '다른사람',
+      birthday: '1990-01-01',
+      phoneNumber: '010-1234-5678',
+    });
+    await memberRepository.save(member2);
+
+    const board = boardRepository.create({
+      boardId: 'owner-board',
+      title: '게시글',
+      content: '내용',
+      categoryName: '자유',
+      member: member1,
+    });
+    await boardRepository.save(board);
+
+    const comment = commentRepository.create({
+      content: '댓글 내용',
+      board,
+      member: member1,
+    });
+    await commentRepository.save(comment);
+
+    // when & then
+    await expect(
+      service.updateComment(board.boardId, comment.commentId, {
+        content: '수정 내용',
+        email: member2.email,
+      }),
+    ).rejects.toThrow('본인의 댓글만 수정할 수 있습니다.');
+  });
 });

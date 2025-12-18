@@ -18,6 +18,8 @@ import { Comment } from './entities/comment.entity';
 import { RequestAddCommentDto } from './dto/request/request-add-comment.dto';
 import { CommentNotFoundException } from './exceptions/comment-not-found.exception';
 import { ResponseGetCommentsWrapperDto } from './dto/response/response-get-comments-wrapper.dto';
+import { NotYourCommentException } from './exceptions/not-your-comment.exception';
+import { RequestSetCommentDto } from './dto/request/request-set-comment.dto';
 
 @Injectable()
 export class BoardService {
@@ -343,5 +345,32 @@ export class BoardService {
       currentPage: page,
       size,
     };
+  }
+  async updateComment(
+    boardId: string,
+    commentId: string,
+    dto: RequestSetCommentDto,
+  ): Promise<void> {
+    // 게시글 존재 확인
+    await this.getBoardOrThrow(boardId);
+
+    // 댓글 존재 확인
+    const comment = await this.getCommentOrThrow(commentId);
+
+    // 댓글이 해당 게시글에 속하는지 확인
+    if (comment.board.boardId !== boardId) {
+      throw new InvalidBoardRequestException(
+        '해당 게시글에 속한 댓글이 아닙니다.',
+      );
+    }
+
+    // 이메일이 제공된 경우 작성자 확인
+    if (dto.email && comment.member.email !== dto.email) {
+      throw new NotYourCommentException('본인의 댓글만 수정할 수 있습니다.');
+    }
+
+    // 댓글 내용 업데이트
+    comment.content = dto.content;
+    await this.commentRepository.save(comment);
   }
 }
