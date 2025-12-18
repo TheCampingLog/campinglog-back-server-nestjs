@@ -1032,4 +1032,143 @@ describe('BoardController (e2e)', () => {
       .send({})
       .expect(400);
   });
+
+  it('/api/boards/:boardId/comments (GET) success', async () => {
+    const { accessToken } = await createMemberAndLogin(
+      'commentGetTester@test.com',
+      'commentGetTester',
+    );
+
+    // 2) 게시글 생성
+    const createBoardDto = {
+      title: '댓글 조회 테스트 게시글',
+      content: '댓글 조회 테스트 내용',
+      categoryName: 'FREE',
+      boardImage: null,
+    };
+
+    interface BoardResponse {
+      message: string;
+      boardId: string;
+    }
+
+    const boardRes = await request(app.getHttpServer())
+      .post('/api/boards')
+      .set('authorization', accessToken)
+      .send(createBoardDto)
+      .expect(201);
+
+    const { boardId } = boardRes.body as BoardResponse;
+
+    // 3) 댓글 3개 생성
+    for (let i = 1; i <= 3; i++) {
+      await request(app.getHttpServer())
+        .post(`/api/boards/${boardId}/comment`)
+        .set('authorization', accessToken)
+        .send({ content: `댓글 ${i}` })
+        .expect(201);
+    }
+
+    // 4) 댓글 조회
+    const res = await request(app.getHttpServer())
+      .get(`/api/boards/${boardId}/comments`)
+      .query({ page: 1, size: 10 })
+      .expect(200);
+
+    const body = res.body as {
+      comments: Array<{
+        commentId: string;
+        content: string;
+        nickname: string;
+        createdAt: string;
+      }>;
+      totalElements: number;
+      totalPages: number;
+      currentPage: number;
+      size: number;
+    };
+
+    expect(body.comments).toHaveLength(3);
+    expect(body.totalElements).toBe(3);
+    expect(body.totalPages).toBe(1);
+    expect(body.currentPage).toBe(1);
+    expect(body.comments[0].nickname).toBe('commentGetTester');
+  });
+
+  it('/api/boards/:boardId/comments (GET) pagination', async () => {
+    const { accessToken } = await createMemberAndLogin(
+      'commentPaginationTester@test.com',
+      'commentPaginationTester',
+    );
+
+    // 2) 게시글 생성
+    const createBoardDto = {
+      title: '페이지네이션 테스트 게시글',
+      content: '페이지네이션 테스트 내용',
+      categoryName: 'FREE',
+      boardImage: null,
+    };
+
+    interface BoardResponse {
+      message: string;
+      boardId: string;
+    }
+
+    const boardRes = await request(app.getHttpServer())
+      .post('/api/boards')
+      .set('authorization', accessToken)
+      .send(createBoardDto)
+      .expect(201);
+
+    const { boardId } = boardRes.body as BoardResponse;
+
+    // 3) 댓글 5개 생성
+    for (let i = 1; i <= 5; i++) {
+      await request(app.getHttpServer())
+        .post(`/api/boards/${boardId}/comment`)
+        .set('authorization', accessToken)
+        .send({ content: `댓글 ${i}` })
+        .expect(201);
+    }
+
+    // 4) 2페이지 조회 (size=2)
+    const res = await request(app.getHttpServer())
+      .get(`/api/boards/${boardId}/comments`)
+      .query({ page: 2, size: 2 })
+      .expect(200);
+
+    const body = res.body as {
+      comments: Array<{
+        commentId: string;
+        content: string;
+        nickname: string;
+        createdAt: string;
+      }>;
+      totalElements: number;
+      totalPages: number;
+      currentPage: number;
+      size: number;
+    };
+
+    expect(body.comments).toHaveLength(2);
+    expect(body.totalElements).toBe(5);
+    expect(body.totalPages).toBe(3);
+    expect(body.currentPage).toBe(2);
+  });
+
+  it('/api/boards/:boardId/comments (GET) board not found', async () => {
+    return request(app.getHttpServer())
+      .get('/api/boards/invalid-board-id/comments')
+      .query({ page: 1, size: 3 })
+      .expect(404)
+      .expect((res) => {
+        const body = res.body as {
+          path: string;
+          timestamp: string;
+          error: string;
+          message: string;
+        };
+        expect(body.message).toContain('게시글을 찾을 수 없습니다.');
+      });
+  });
 });

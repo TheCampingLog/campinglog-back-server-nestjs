@@ -848,4 +848,127 @@ describe('BoardService', () => {
       '이메일이 필요합니다.',
     );
   });
+  it('댓글 조회 - 성공', async () => {
+    // given
+    const member = memberRepository.create({
+      email: 'test@test.com',
+      password: 'password123',
+      nickname: 'tester',
+      name: '테스터',
+      birthday: '1990-01-01',
+      phoneNumber: '010-1234-5678',
+    });
+    await memberRepository.save(member);
+
+    const board = boardRepository.create({
+      boardId: 'test-board-id',
+      title: '테스트 게시글',
+      content: '테스트 내용',
+      categoryName: '자유',
+      member,
+    });
+    await boardRepository.save(board);
+
+    const comment1 = commentRepository.create({
+      content: '첫 번째 댓글',
+      board,
+      member,
+      createdAt: new Date('2024-01-01T10:00:00'),
+    });
+    const comment2 = commentRepository.create({
+      content: '두 번째 댓글',
+      board,
+      member,
+      createdAt: new Date('2024-01-01T11:00:00'),
+    });
+    await commentRepository.save([comment1, comment2]);
+
+    // when
+    const result = await service.getComments(board.boardId, 1, 3);
+
+    // then
+    expect(result.comments).toHaveLength(2);
+    expect(result.comments[0].content).toBe('두 번째 댓글'); // 최신순
+    expect(result.comments[1].content).toBe('첫 번째 댓글');
+    expect(result.totalElements).toBe(2);
+    expect(result.totalPages).toBe(1);
+    expect(result.currentPage).toBe(1);
+    expect(result.size).toBe(3);
+  });
+
+  it('댓글 조회 - 페이지네이션', async () => {
+    // given
+    const member = memberRepository.create({
+      email: 'test2@test.com',
+      password: 'password123',
+      nickname: 'tester2',
+      name: '테스터2',
+      birthday: '1990-01-01',
+      phoneNumber: '010-1234-5678',
+    });
+    await memberRepository.save(member);
+
+    const board = boardRepository.create({
+      boardId: 'test-board-id-2',
+      title: '테스트 게시글',
+      content: '테스트 내용',
+      categoryName: '자유',
+      member,
+    });
+    await boardRepository.save(board);
+
+    for (let i = 0; i < 5; i++) {
+      const comment = commentRepository.create({
+        content: `댓글 ${i}`,
+        board,
+        member,
+        createdAt: new Date(`2024-01-01T${10 + i}:00:00`),
+      });
+      await commentRepository.save(comment);
+    }
+
+    // when
+    const result = await service.getComments(board.boardId, 2, 2);
+
+    // then
+    expect(result.comments).toHaveLength(2);
+    expect(result.totalElements).toBe(5);
+    expect(result.totalPages).toBe(3);
+    expect(result.currentPage).toBe(2);
+    expect(result.size).toBe(2);
+  });
+
+  it('댓글 조회 - 존재하지 않는 게시글', async () => {
+    // when & then
+    await expect(service.getComments('invalid-id', 1, 3)).rejects.toThrow(
+      '게시글을 찾을 수 없습니다.',
+    );
+  });
+
+  it('댓글 조회 - 잘못된 페이지 번호', async () => {
+    // given
+    const member = memberRepository.create({
+      email: 'test3@test.com',
+      password: 'password123',
+      nickname: 'tester3',
+      name: '테스터3',
+      birthday: '1990-01-01',
+      phoneNumber: '010-1234-5678',
+    });
+    await memberRepository.save(member);
+
+    const board = boardRepository.create({
+      boardId: 'test-board-id-3',
+      title: '테스트 게시글',
+      content: '테스트 내용',
+      categoryName: '자유',
+      member,
+    });
+    await boardRepository.save(board);
+
+    // when & then
+    await expect(service.getComments(board.boardId, 0, 3)).rejects.toThrow(
+      'page>=1, size>=1 이어야 합니다.',
+    );
+  });
 });
