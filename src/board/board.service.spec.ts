@@ -1505,4 +1505,129 @@ describe('BoardService', () => {
       service.addLike(board.boardId, { email: 'invalid@email.com' }),
     ).rejects.toThrow('회원을 찾을 수 없습니다.');
   });
+
+  it('좋아요 삭제 - 성공', async () => {
+    // given
+    const member = memberRepository.create({
+      email: 'likedelete@test.com',
+      password: 'password123',
+      nickname: 'likeDeleteTester',
+      name: '좋아요삭제',
+      birthday: '1990-01-01',
+      phoneNumber: '010-1234-5678',
+    });
+    await memberRepository.save(member);
+
+    const board = boardRepository.create({
+      boardId: 'like-delete-board',
+      title: '좋아요 삭제 테스트',
+      content: '내용',
+      categoryName: '자유',
+      member,
+      likeCount: 1,
+    });
+    await boardRepository.save(board);
+
+    const boardLike = boardLikeRepository.create({
+      board,
+      member,
+    });
+    await boardLikeRepository.save(boardLike);
+
+    // when
+    const result = await service.deleteLike(board.boardId, member.email);
+
+    // then
+    expect(result.isLiked).toBe(false);
+    expect(result.likeCount).toBe(0);
+
+    // 데이터베이스 확인
+    const updatedBoard = await boardRepository.findOne({
+      where: { boardId: board.boardId },
+    });
+    expect(updatedBoard).toBeDefined();
+    expect(updatedBoard!.likeCount).toBe(0);
+
+    const deletedLike = await boardLikeRepository.findOne({
+      where: {
+        board: { id: board.id },
+        member: { email: member.email },
+      },
+    });
+    expect(deletedLike).toBeNull();
+  });
+
+  it('좋아요 삭제 - 좋아요를 누르지 않은 경우', async () => {
+    // given
+    const member = memberRepository.create({
+      email: 'likenotliked@test.com',
+      password: 'password123',
+      nickname: 'likeNotLikedTester',
+      name: '좋아요안누름',
+      birthday: '1990-01-01',
+      phoneNumber: '010-1234-5678',
+    });
+    await memberRepository.save(member);
+
+    const board = boardRepository.create({
+      boardId: 'like-notliked-board',
+      title: '좋아요 안누름 테스트',
+      content: '내용',
+      categoryName: '자유',
+      member,
+      likeCount: 0,
+    });
+    await boardRepository.save(board);
+
+    // when & then
+    await expect(
+      service.deleteLike(board.boardId, member.email),
+    ).rejects.toThrow('좋아요를 누르지 않은 게시글입니다.');
+  });
+
+  it('좋아요 삭제 - 게시글 없음', async () => {
+    // given
+    const member = memberRepository.create({
+      email: 'likedelnoboard@test.com',
+      password: 'password123',
+      nickname: 'likeDelNoBoardTester',
+      name: '삭제게시글없음',
+      birthday: '1990-01-01',
+      phoneNumber: '010-1234-5678',
+    });
+    await memberRepository.save(member);
+
+    // when & then
+    await expect(
+      service.deleteLike('invalid-board-id', member.email),
+    ).rejects.toThrow('게시글을 찾을 수 없습니다.');
+  });
+
+  it('좋아요 삭제 - 회원 없음', async () => {
+    // given
+    const member = memberRepository.create({
+      email: 'likedelnomember@test.com',
+      password: 'password123',
+      nickname: 'likeDelNoMemberTester',
+      name: '삭제회원없음',
+      birthday: '1990-01-01',
+      phoneNumber: '010-1234-5678',
+    });
+    await memberRepository.save(member);
+
+    const board = boardRepository.create({
+      boardId: 'like-delnomember-board',
+      title: '회원 없음 삭제 테스트',
+      content: '내용',
+      categoryName: '자유',
+      member,
+      likeCount: 0,
+    });
+    await boardRepository.save(board);
+
+    // when & then
+    await expect(
+      service.deleteLike(board.boardId, 'invalid@email.com'),
+    ).rejects.toThrow('회원을 찾을 수 없습니다.');
+  });
 });

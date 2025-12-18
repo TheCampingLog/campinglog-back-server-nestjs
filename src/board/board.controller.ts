@@ -204,4 +204,14 @@ export class BoardController {
     dto.email = accessMember.email;
     return await this.boardService.addLike(boardId, dto);
   }
+
+  @UseGuards(AccessAuthGuard)
+  @Delete(':boardId/likes')
+  @HttpCode(200)
+  async deleteLike(
+    @Param('boardId') boardId: string,
+    @AccessMember() accessMember: JwtData,
+  ): Promise<ResponseToggleLikeDto> {
+    return await this.boardService.deleteLike(boardId, accessMember.email);
+  }
 }
