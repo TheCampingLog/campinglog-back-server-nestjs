@@ -5,25 +5,59 @@ import { HttpConfigModule } from '../config/http-config.module';
 import { ResponseGetCampByKeywordList } from './dto/response/response-get-camp-by-keyword-list.dto';
 import { NoSearchResultException } from './exceptions/no-search-result.exception';
 import { NoExistCampException } from './exceptions/no-exist-camp.exception';
+import { Repository } from 'typeorm';
+import { Review } from './entities/review.entity';
+import { getRepositoryToken, TypeOrmModule } from '@nestjs/typeorm';
+import { Member } from 'src/auth/entities/member.entity';
+import { Board } from 'src/board/entities/board.entity';
+import { RefreshToken } from 'src/auth/entities/refresh-token.entity';
+import { BoardLike } from 'src/board/entities/board-like.entity';
+import { Comment } from 'src/board/entities/comment.entity';
 
 describe('CampinfoService', () => {
   let service: CampinfoService;
-
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
+  let reviewRepository: Repository<Review>;
+  let memberRepository: Repository<Member>;
+  let module: TestingModule | null = null;
+  beforeAll(async () => {
+    module = await Test.createTestingModule({
       imports: [
-        HttpConfigModule,
         ConfigModule.forRoot({
           isGlobal: true,
           envFilePath: 'src/config/env/.dev.env',
         }),
+        HttpConfigModule,
+        TypeOrmModule.forRoot({
+          type: 'sqlite',
+          database: ':memory:',
+          entities: [Member, Review, Board, Comment, BoardLike, RefreshToken],
+          synchronize: true,
+          dropSchema: true,
+        }),
+        TypeOrmModule.forFeature([Member, Review, Board, Comment, BoardLike]),
       ],
       providers: [CampinfoService],
     }).compile();
 
     service = module.get<CampinfoService>(CampinfoService);
+    reviewRepository = module.get<Repository<Review>>(
+      getRepositoryToken(Review),
+    );
+    memberRepository = module.get<Repository<Member>>(
+      getRepositoryToken(Member),
+    );
   });
 
+  afterAll(async () => {
+    if (module) {
+      await module.close();
+    }
+  });
+
+  afterEach(async () => {
+    await reviewRepository.clear();
+    await memberRepository.clear();
+  });
   it('캠핑장 목록 조회 테스트', async () => {
     //given
     const pageNo = 1;
@@ -77,5 +111,35 @@ describe('CampinfoService', () => {
     await expect(
       service.getCampByKeyword(keyword, pageNo, size),
     ).rejects.toThrow(NoSearchResultException);
+  });
+
+  it('캠핑장 리뷰 목록 조회 테스트', async () => {
+    //given
+    const member = memberRepository.create({
+      email: 'test@example.com',
+      password: 'password123',
+      name: '홍길동',
+      nickname: 'tester',
+      birthday: new Date('1990-01-01'),
+      phoneNumber: '010-1234-5678',
+    });
+    await memberRepository.save(member);
+
+    await reviewRepository.save({
+      mapX: '127.634822811708',
+      mapY: '36.8780509365952',
+      reviewContent: '테스트 리뷰',
+      reviewScore: 4.0,
+      member: member,
+    });
+
+    const mapX = '127.634822811708';
+    const mapY = '36.8780509365952';
+    const page = 1;
+    const size = 4;
+    //when & then
+    const result = await service.getReviewList(mapX, mapY, page, size);
+    expect(result.items.length).toBeGreaterThan(0);
+    expect(result.items).toHaveLength(1);
   });
 });

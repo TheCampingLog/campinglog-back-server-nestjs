@@ -11,6 +11,11 @@ import { MissingCampApiKeyException } from './exceptions/missing-camp-api-key.ex
 import { NoExistCampException } from './exceptions/no-exist-camp.exception';
 import { ResponseGetCampByKeywordList } from './dto/response/response-get-camp-by-keyword-list.dto';
 import { NoSearchResultException } from './exceptions/no-search-result.exception';
+import { ResponseGetReviewListWrapper } from './dto/response/response-get-review-list-wrapper.dto';
+import { Review } from './entities/review.entity';
+import { Repository } from 'typeorm';
+import { InjectRepository } from '@nestjs/typeorm';
+import { ResponseGetReviewList } from './dto/response/response-get-review-list.dto';
 
 // 예상 응답 타입 인터페이스 예시
 interface CampingApiResponse {
@@ -36,6 +41,8 @@ export class CampinfoService {
   constructor(
     private readonly httpService: HttpService,
     private readonly config: ConfigService,
+    @InjectRepository(Review)
+    private readonly reviewRepository: Repository<Review>,
   ) {
     this.serviceKey = this.config.get<string>('CAMP_KEY') ?? '';
     if (!this.serviceKey) throw new MissingCampApiKeyException();
@@ -141,6 +148,46 @@ export class CampinfoService {
       size,
     };
     return result;
+  }
+
+  async getReviewList(
+    mapX: string,
+    mapY: string,
+    page: number,
+    size: number,
+  ): Promise<ResponseGetReviewListWrapper> {
+    const [reviews, total] = await this.reviewRepository.findAndCount({
+      where: {
+        mapX,
+        mapY,
+      },
+      relations: ['member'],
+      order: {
+        createAt: 'DESC',
+      },
+      skip: (page - 1) * size,
+      take: size,
+    });
+    const totalPages = Math.ceil(total / size);
+
+    const items: ResponseGetReviewList[] = reviews.map((review) => ({
+      reviewImage: review.reviewImage,
+      reviewContent: review.reviewContent,
+      reviewScore: review.reviewScore,
+      email: review.member.email,
+      nickname: review.member.nickname,
+      createAt: review.createAt,
+      updateAt: review.updateAt,
+    }));
+
+    return {
+      items,
+      page,
+      size,
+      hasNext: page + 1 < totalPages,
+      totalElement: total,
+      totalPages,
+    };
   }
 
   parseItems<T>(json: CampingApiResponse, type: new () => T): T[] {
