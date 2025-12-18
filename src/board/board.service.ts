@@ -17,6 +17,7 @@ import { ResponseGetBoardByCategoryWrapper } from './dto/response/response-get-b
 import { Comment } from './entities/comment.entity';
 import { RequestAddCommentDto } from './dto/request/request-add-comment.dto';
 import { CommentNotFoundException } from './exceptions/comment-not-found.exception';
+import { ResponseGetCommentsWrapperDto } from './dto/response/response-get-comments-wrapper.dto';
 
 @Injectable()
 export class BoardService {
@@ -298,5 +299,49 @@ export class BoardService {
     await this.boardRepository.save(board);
 
     return savedComment;
+  }
+
+  async getComments(
+    boardId: string,
+    page: number,
+    size: number,
+  ): Promise<ResponseGetCommentsWrapperDto> {
+    if (page < 1 || size < 1) {
+      throw new InvalidBoardRequestException('page>=1, size>=1 이어야 합니다.');
+    }
+
+    // 게시글 존재 확인
+    await this.getBoardOrThrow(boardId);
+
+    const skip = (page - 1) * size;
+
+    const [comments, total] = await this.commentRepository.findAndCount({
+      where: {
+        board: { boardId },
+      },
+      relations: ['member'],
+      order: {
+        createdAt: 'DESC',
+      },
+      skip,
+      take: size,
+    });
+
+    const commentsData = comments.map((comment) => ({
+      commentId: comment.commentId,
+      content: comment.content,
+      nickname: comment.member.nickname,
+      createdAt: comment.createdAt,
+    }));
+
+    const totalPages = Math.ceil(total / size);
+
+    return {
+      comments: commentsData,
+      totalElements: total,
+      totalPages,
+      currentPage: page,
+      size,
+    };
   }
 }

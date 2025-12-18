@@ -20,6 +20,7 @@ import { AccessMember } from 'src/auth/decorators/jwt-member.decorator';
 import { type JwtData } from 'src/auth/interfaces/jwt.interface';
 import { HttpCode } from '@nestjs/common/decorators/http/http-code.decorator';
 import { RequestAddCommentDto } from './dto/request/request-add-comment.dto';
+import { ResponseGetCommentsWrapperDto } from './dto/response/response-get-comments-wrapper.dto';
 
 @Controller('api/boards')
 @UseFilters(BoardExceptionFilter)
@@ -130,5 +131,15 @@ export class BoardController {
       boardId: boardId,
       commentId: saved.commentId,
     };
+  }
+
+  @Get(':boardId/comments')
+  @HttpCode(200)
+  async getComments(
+    @Param('boardId') boardId: string,
+    @Query('page') page: number = 1,
+    @Query('size') size: number = 3,
+  ): Promise<ResponseGetCommentsWrapperDto> {
+    return await this.boardService.getComments(boardId, page, size);
   }
 }
