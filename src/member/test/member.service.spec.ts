@@ -14,6 +14,7 @@ describe('MemberService 단위테스트', () => {
   let memberService: MemberService;
   let memberRepository: Repository<Member>;
   let boardRepository: Repository<Board>;
+  let boardLikeRepository: Repository<BoardLike>;
 
   beforeAll(async () => {
     module = await Test.createTestingModule({
@@ -29,6 +30,9 @@ describe('MemberService 단위테스트', () => {
       getRepositoryToken(Member),
     );
     boardRepository = module.get<Repository<Board>>(getRepositoryToken(Board));
+    boardLikeRepository = module.get<Repository<BoardLike>>(
+      getRepositoryToken(BoardLike),
+    );
   });
 
   beforeEach(async (): Promise<void> => {
@@ -63,6 +67,26 @@ describe('MemberService 단위테스트', () => {
     const member = memberRepository.create(testMember);
     const resultMember = await memberRepository.save(member);
     return resultMember;
+  };
+
+  //회원 랭킹 조회
+  const createAndSaveBoard = async (
+    email: string,
+    likeCount: number,
+  ): Promise<Board> => {
+    const testBoard = createTestBoard(email, likeCount);
+    const resultBoard = await boardRepository.save(testBoard);
+    return resultBoard;
+  };
+
+  //회원 랭킹 조회
+  const createAndSaveBoardLike = async (
+    member: Member,
+    board: Board,
+  ): Promise<BoardLike> => {
+    const testBoardLike = boardLikeRepository.create({ member, board });
+    const resultBoardLike = await boardLikeRepository.save(testBoardLike);
+    return resultBoardLike;
   };
 
   it('DB에 존재하는 이메일이면 멤버를 반환', async (): Promise<void> => {
@@ -165,5 +189,74 @@ describe('MemberService 단위테스트', () => {
 
     //then
     expect(result).toBe(0);
+  });
+
+  it('입력한 날짜 사이의 랭킹 검색', async () => {
+    //given
+    //테스트 멤버 2개 생성
+    const testMember1 = await createAndSaveMember('test1@example.com');
+    const testMember2 = await createAndSaveMember('test2@example.com');
+    //테스트 보드 2개 생성
+    const testBoard1 = await createAndSaveBoard(testMember1.email, 10);
+    const testBoard2 = await createAndSaveBoard(testMember2.email, 10);
+    const testBoard3 = await createAndSaveBoard(testMember2.email, 10);
+    //테스트 좋아요 1개씩 생성
+    await createAndSaveBoardLike(testMember1, testBoard2);
+    await createAndSaveBoardLike(testMember2, testBoard1);
+    await createAndSaveBoardLike(testMember2, testBoard3);
+
+    const start = new Date();
+    const end = new Date();
+    start.setHours(start.getHours() - 1);
+    end.setHours(end.getHours() + 1);
+
+    const result = await memberService.findTopMembersByLikeCreatedAt(
+      start,
+      end,
+    );
+
+    expect(result.length).toBe(2);
+    expect(result[0].email).toBe('test2@example.com');
+  });
+
+  //회원 랭킹 조회
+  it('입력한 랭킹 개수만큼 랭킹 검색', async () => {
+    //given
+    //테스트 멤버 6개 생성
+    const [
+      testMember1,
+      testMember2,
+      testMember3,
+      testMember4,
+      testMember5,
+      testMember6,
+    ] = await Promise.all([
+      createAndSaveMember('test1@example.com'),
+      createAndSaveMember('test2@example.com'),
+      createAndSaveMember('test3@example.com'),
+      createAndSaveMember('test4@example.com'),
+      createAndSaveMember('test5@example.com'),
+      createAndSaveMember('test6@example.com'),
+    ]);
+    //테스트 보드 3개 생성
+    const [testBoard1, testBoard2, testBoard3] = await Promise.all([
+      createAndSaveBoard(testMember1.email, 10),
+      createAndSaveBoard(testMember2.email, 10),
+      createAndSaveBoard(testMember3.email, 10),
+    ]);
+    //테스트 좋아요 (testMember1: 1개, testMember2: 2개, testMember3: 3개)
+    await Promise.all([
+      createAndSaveBoardLike(testMember2, testBoard1),
+      createAndSaveBoardLike(testMember1, testBoard2),
+      createAndSaveBoardLike(testMember3, testBoard2),
+      createAndSaveBoardLike(testMember4, testBoard3),
+      createAndSaveBoardLike(testMember5, testBoard3),
+      createAndSaveBoardLike(testMember6, testBoard3),
+    ]);
+
+    const result = await memberService.updateRankWeekly(2);
+
+    expect(result.length).toBe(2);
+    expect(result[0].email).toBe('test3@example.com');
   });
 });
