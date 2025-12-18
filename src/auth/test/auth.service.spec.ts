@@ -9,10 +9,15 @@ import { JwtConfigService } from '../jwt/jwt.config';
 import { Repository } from 'typeorm';
 import { Member } from '../entities/member.entity';
 import { RefreshToken } from '../entities/refresh-token.entity';
-import { RequestAddMemeberDto } from '../dto/request/request-add-member.dto';
+import { RequestAddMemberDto } from '../dto/request/request-add-member.dto';
+import {
+  createTestMember,
+  createInvalidTestMember,
+} from './fixtures/member.fixture';
+import { MemberNotFoundException } from 'src/member/exceptions/member-not-found.exception';
 
 describe('AuthService 단위테스트', () => {
-  let service: AuthService;
+  let authService: AuthService;
   let memberRepository: Repository<Member>;
   let module: TestingModule;
 
@@ -31,10 +36,18 @@ describe('AuthService 단위테스트', () => {
       providers: [AuthService, JwtConfigService],
     }).compile();
 
-    service = module.get<AuthService>(AuthService);
+    authService = module.get<AuthService>(AuthService);
     memberRepository = module.get<Repository<Member>>(
       getRepositoryToken(Member),
     );
+  });
+
+  // 회원 탈퇴
+  beforeEach(async (): Promise<void> => {
+    const testMember = await createTestMember();
+    const member = memberRepository.create(testMember);
+
+    await memberRepository.save(member);
   });
 
   afterAll(async () => {
@@ -47,8 +60,8 @@ describe('AuthService 단위테스트', () => {
 
   it('유효한 회원가입 값이면 회원가입에 성공', async () => {
     //given
-    const requestAddMemberDto: RequestAddMemeberDto = {
-      email: 'test@example.com',
+    const requestAddMemberDto: RequestAddMemberDto = {
+      email: 'test1@example.com',
       password: 'password123',
       name: '홍길동',
       nickname: 'tester',
@@ -57,7 +70,7 @@ describe('AuthService 단위테스트', () => {
     };
 
     //when
-    const result = await service.create(requestAddMemberDto);
+    const result = await authService.create(requestAddMemberDto);
 
     //then
     expect(result).toEqual({ message: 'success' });
@@ -67,5 +80,30 @@ describe('AuthService 단위테스트', () => {
     });
 
     expect(member).toBeInstanceOf(Member);
+  });
+  // 회원 탈퇴
+  it('유효한 멤버의 이메일 값이면 회원 탈퇴 성공', async () => {
+    //given
+    const validMember = await createTestMember();
+
+    //when
+    await authService.deleteMember(validMember.email);
+
+    const result = await memberRepository.findOneBy({
+      email: validMember.email,
+    });
+    //then
+    expect(result).toBeFalsy();
+  });
+
+  // 회원 탈퇴
+  it('유효하지 않은 멤버의 이메일 값이면MemberNotFound 예외를 던짐 ', async () => {
+    //given
+    const invalidMember = await createInvalidTestMember();
+
+    //when & then
+    await expect(authService.deleteMember(invalidMember.email)).rejects.toThrow(
+      MemberNotFoundException,
+    );
   });
 });

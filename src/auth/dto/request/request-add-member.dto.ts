@@ -7,7 +7,7 @@ import {
   IsDateString,
 } from 'class-validator';
 
-export class RequestAddMemeberDto {
+export class RequestAddMemberDto {
   @IsNotEmpty()
   @IsEmail()
   @MaxLength(100)
