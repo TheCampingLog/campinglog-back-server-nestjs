@@ -23,6 +23,8 @@ import { RequestAddCommentDto } from './dto/request/request-add-comment.dto';
 import { ResponseGetCommentsWrapperDto } from './dto/response/response-get-comments-wrapper.dto';
 import { RequestSetCommentDto } from './dto/request/request-set-comment.dto';
 import { ResponseGetLikeDto } from './dto/response/response-get-like.dto';
+import { RequestAddLikeDto } from './dto/request/request-add-like.dto';
+import { ResponseToggleLikeDto } from './dto/response/response-toggle-like.dto';
 
 @Controller('api/boards')
 @UseFilters(BoardExceptionFilter)
@@ -189,5 +191,17 @@ export class BoardController {
     @Param('boardId') boardId: string,
   ): Promise<ResponseGetLikeDto> {
     return await this.boardService.getLikes(boardId);
+  }
+
+  @UseGuards(AccessAuthGuard)
+  @Post(':boardId/likes')
+  @HttpCode(201)
+  async addLike(
+    @Param('boardId') boardId: string,
+    @Body() dto: RequestAddLikeDto,
+    @AccessMember() accessMember: JwtData,
+  ): Promise<ResponseToggleLikeDto> {
+    dto.email = accessMember.email;
+    return await this.boardService.addLike(boardId, dto);
   }
 }

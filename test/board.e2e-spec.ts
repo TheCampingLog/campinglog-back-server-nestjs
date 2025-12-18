@@ -1574,4 +1574,154 @@ describe('BoardController (e2e)', () => {
         expect(body.message).toContain('게시글을 찾을 수 없습니다.');
       });
   });
+
+  it('/api/boards/:boardId/likes (POST) success - add like', async () => {
+    const { accessToken } = await createMemberAndLogin(
+      'likeAddTester@test.com',
+      'likeAddTester',
+    );
+
+    // 2) 게시글 생성
+    const createBoardDto = {
+      title: '좋아요 추가 테스트 게시글',
+      content: '좋아요 추가 테스트 내용',
+      categoryName: 'FREE',
+      boardImage: null,
+    };
+
+    interface BoardResponse {
+      message: string;
+      boardId: string;
+    }
+
+    const boardRes = await request(app.getHttpServer())
+      .post('/api/boards')
+      .set('authorization', accessToken)
+      .send(createBoardDto)
+      .expect(201);
+
+    const { boardId } = boardRes.body as BoardResponse;
+
+    // 3) 좋아요 추가
+    const res = await request(app.getHttpServer())
+      .post(`/api/boards/${boardId}/likes`)
+      .set('authorization', accessToken)
+      .send({})
+      .expect(201);
+
+    const body = res.body as {
+      isLiked: boolean;
+      likeCount: number;
+    };
+    expect(body.isLiked).toBe(true);
+    expect(body.likeCount).toBe(1);
+  });
+
+  it('/api/boards/:boardId/likes (POST) already liked', async () => {
+    const { accessToken } = await createMemberAndLogin(
+      'likeAlreadyTester@test.com',
+      'likeAlreadyTester',
+    );
+
+    // 2) 게시글 생성
+    const createBoardDto = {
+      title: '좋아요 중복 테스트 게시글',
+      content: '좋아요 중복 테스트 내용',
+      categoryName: 'FREE',
+      boardImage: null,
+    };
+
+    interface BoardResponse {
+      message: string;
+      boardId: string;
+    }
+
+    const boardRes = await request(app.getHttpServer())
+      .post('/api/boards')
+      .set('authorization', accessToken)
+      .send(createBoardDto)
+      .expect(201);
+
+    const { boardId } = boardRes.body as BoardResponse;
+
+    // 3) 첫 번째 좋아요 추가
+    await request(app.getHttpServer())
+      .post(`/api/boards/${boardId}/likes`)
+      .set('authorization', accessToken)
+      .send({})
+      .expect(201);
+
+    // 4) 두 번째 좋아요 추가 시도 (중복)
+    return request(app.getHttpServer())
+      .post(`/api/boards/${boardId}/likes`)
+      .set('authorization', accessToken)
+      .send({})
+      .expect(409)
+      .expect((res) => {
+        const body = res.body as {
+          path: string;
+          timestamp: string;
+          error: string;
+          message: string;
+        };
+        expect(body.message).toContain('이미 좋아요를 누른 게시글입니다.');
+      });
+  });
+
+  it('/api/boards/:boardId/likes (POST) board not found', async () => {
+    const { accessToken } = await createMemberAndLogin(
+      'likeNoBoardTester@test.com',
+      'likeNoBoardTester',
+    );
+
+    // 2) 존재하지 않는 게시글에 좋아요 추가
+    return request(app.getHttpServer())
+      .post('/api/boards/invalid-board-id/likes')
+      .set('authorization', accessToken)
+      .send({})
+      .expect(404)
+      .expect((res) => {
+        const body = res.body as {
+          path: string;
+          timestamp: string;
+          error: string;
+          message: string;
+        };
+        expect(body.message).toContain('게시글을 찾을 수 없습니다.');
+      });
+  });
+
+  it('/api/boards/:boardId/likes (POST) unauthorized', async () => {
+    const { accessToken } = await createMemberAndLogin(
+      'likeBoardOnlyTester@test.com',
+      'likeBoardOnlyTester',
+    );
+
+    // 2) 게시글 생성
+    const createBoardDto = {
+      title: '인증 테스트 게시글',
+      content: '인증 테스트 내용',
+      categoryName: 'FREE',
+      boardImage: null,
+    };
+
+    interface BoardResponse {
+      message: string;
+      boardId: string;
+    }
+
+    const boardRes = await request(app.getHttpServer())
+      .post('/api/boards')
+      .set('authorization', accessToken)
+      .send(createBoardDto)
+      .expect(201);
+
+    const { boardId } = boardRes.body as BoardResponse;
+
+    // 3) 인증 없이 좋아요 추가 시도
+    return request(app.getHttpServer())
+      .post(`/api/boards/${boardId}/likes`)
+      .send({})
+      .expect(401);
+  });
 });

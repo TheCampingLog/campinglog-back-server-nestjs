@@ -21,6 +21,9 @@ import { ResponseGetCommentsWrapperDto } from './dto/response/response-get-comme
 import { NotYourCommentException } from './exceptions/not-your-comment.exception';
 import { RequestSetCommentDto } from './dto/request/request-set-comment.dto';
 import { ResponseGetLikeDto } from './dto/response/response-get-like.dto';
+import { RequestAddLikeDto } from './dto/request/request-add-like.dto';
+import { ResponseToggleLikeDto } from './dto/response/response-toggle-like.dto';
+import { AlreadyLikedException } from './exceptions/already-liked.exception';
 
 @Injectable()
 export class BoardService {
@@ -411,5 +414,41 @@ export class BoardService {
     const board = await this.getBoardOrThrow(boardId);
 
     return new ResponseGetLikeDto(board.boardId, board.likeCount);
+  }
+
+  async addLike(
+    boardId: string,
+    dto: RequestAddLikeDto,
+  ): Promise<ResponseToggleLikeDto> {
+    // 게시글 존재 확인
+    const board = await this.getBoardOrThrow(boardId);
+
+    // 회원 존재 확인
+    const member = await this.getMemberOrThrow(dto.email as string);
+
+    // 이미 좋아요를 눌렀는지 확인
+    const existingLike = await this.boardLikeRepository.findOne({
+      where: {
+        board: { id: board.id },
+        member: { email: member.email },
+      },
+    });
+
+    if (existingLike) {
+      throw new AlreadyLikedException();
+    }
+
+    // 좋아요 생성
+    const boardLike = this.boardLikeRepository.create({
+      board,
+      member,
+    });
+    await this.boardLikeRepository.save(boardLike);
+
+    // 게시글의 좋아요 수 증가
+    board.likeCount += 1;
+    await this.boardRepository.save(board);
+
+    return new ResponseToggleLikeDto(true, board.likeCount);
   }
 }
