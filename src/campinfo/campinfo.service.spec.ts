@@ -5,9 +5,14 @@ import { HttpConfigModule } from '../config/http-config.module';
 import { ResponseGetCampByKeywordList } from './dto/response/response-get-camp-by-keyword-list.dto';
 import { NoSearchResultException } from './exceptions/no-search-result.exception';
 import { NoExistCampException } from './exceptions/no-exist-camp.exception';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { ReviewOfBoard } from './entities/review-of-board.entity';
+import { InvalidLimitException } from './exceptions/invalid-limit.exception';
+import { Repository } from 'typeorm';
 
 describe('CampinfoService', () => {
   let service: CampinfoService;
+  let reviewOfBoardRepository: Repository<ReviewOfBoard>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -17,11 +22,25 @@ describe('CampinfoService', () => {
           isGlobal: true,
           envFilePath: 'src/config/env/.dev.env',
         }),
+        TypeOrmModule.forRoot({
+          type: 'sqlite',
+          database: ':memory:',
+          entities: [ReviewOfBoard],
+          synchronize: true,
+          dropSchema: true,
+          logging: false,
+        }),
+        TypeOrmModule.forFeature([ReviewOfBoard]),
       ],
       providers: [CampinfoService],
     }).compile();
 
     service = module.get<CampinfoService>(CampinfoService);
+    reviewOfBoardRepository = module.get('ReviewOfBoardRepository');
+  });
+
+  afterEach(async () => {
+    await reviewOfBoardRepository.clear();
   });
 
   it('캠핑장 목록 조회 테스트', async () => {
@@ -77,5 +96,71 @@ describe('CampinfoService', () => {
     await expect(
       service.getCampByKeyword(keyword, pageNo, size),
     ).rejects.toThrow(NoSearchResultException);
+  });
+
+  it('인기상승 캠핑장 리뷰 조회 - 성공', async () => {
+    //given
+    const limit = 3;
+
+    // 실제 존재하는 서로 다른 캠핑장 좌표로 테스트 데이터 생성
+    await reviewOfBoardRepository.save([
+      {
+        reviewAverage: 4.5,
+        reviewCount: 10,
+        mapX: '127.2636514', // 실제 캠핑장 좌표 1
+        mapY: '37.0323408',
+      },
+      {
+        reviewAverage: 4.3,
+        reviewCount: 8,
+        mapX: '127.3636514', // 다른 좌표
+        mapY: '37.1323408',
+      },
+      {
+        reviewAverage: 4.1,
+        reviewCount: 5,
+        mapX: '127.4636514', // 다른 좌표
+        mapY: '37.2323408',
+      },
+    ]);
+
+    //when
+    const result = await service.getBoardReviewRank(limit);
+
+    //then
+    expect(result).toBeDefined();
+    expect(result.length).toBe(3);
+    expect(result[0].reviewAverage).toBe(4.5);
+    expect(result[0].mapX).toBe('127.2636514');
+    expect(result[0].mapY).toBe('37.0323408');
+    // reviewAverage 내림차순 정렬 확인
+    expect(result[0].reviewAverage).toBeGreaterThan(result[1].reviewAverage);
+    expect(result[1].reviewAverage).toBeGreaterThan(result[2].reviewAverage);
+  });
+
+  it('인기상승 캠핑장 리뷰 조회 - limit이 0 이하인 경우 에러', async () => {
+    //given
+    const limit = 0;
+
+    //when & then
+    await expect(service.getBoardReviewRank(limit)).rejects.toThrow(
+      InvalidLimitException,
+    );
+    await expect(service.getBoardReviewRank(limit)).rejects.toThrow(
+      '리뷰 랭킹 조회 시 limit은 0보다 커야 합니다.',
+    );
+  });
+
+  it('인기상승 캠핑장 리뷰 조회 - 빈 결과', async () => {
+    //given
+    const limit = 3;
+    // DB에 데이터 없음
+
+    //when
+    const result = await service.getBoardReviewRank(limit);
+
+    //then
+    expect(result).toBeDefined();
+    expect(result.length).toBe(0);
   });
 });
