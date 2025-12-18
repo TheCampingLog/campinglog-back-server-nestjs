@@ -8,6 +8,7 @@ import { BoardLike } from 'src/board/entities/board-like.entity';
 import { Comment } from 'src/board/entities/comment.entity';
 import { TestTypeOrmModule } from 'src/config/test-db.module';
 import { createTestMember } from './fixtures/member.fixture';
+import { MemberNotFoundException } from '../exceptions/member-not-found.exception';
 
 describe('MemberService 단위테스트', () => {
   let module: TestingModule;
@@ -258,5 +259,30 @@ describe('MemberService 단위테스트', () => {
 
     expect(result.length).toBe(2);
     expect(result[0].email).toBe('test3@example.com');
+  });
+
+  //마이 페이지 조회
+  it('DB에 존재하는 이메일이면 ResponseGetMemberDto를 반환', async (): Promise<void> => {
+    //given
+    const testEmail = 'test@example.com';
+
+    //when
+    const result = await memberService.getMember(testEmail);
+
+    //then
+    expect(result.email).toBe('test@example.com');
+    expect(result.birthday).toBeTruthy();
+    expect(result.joinDate).toBeTruthy();
+  });
+
+  //마이 페이지 조회
+  it('DB에 존재하는 않는 이메일이면 MemberNotFoundException을 던짐', async (): Promise<void> => {
+    //given
+    const testEmail = 'invalid@example.com';
+
+    //when & then
+    await expect(memberService.getMember(testEmail)).rejects.toThrow(
+      MemberNotFoundException,
+    );
   });
 });
