@@ -1311,4 +1311,71 @@ describe('BoardService', () => {
       service.deleteComment(board.boardId, comment.commentId, member2.email),
     ).rejects.toThrow('본인의 댓글만 삭제할 수 있습니다.');
   });
+
+  it('좋아요 조회 - 성공 (likeCount 0)', async () => {
+    // given
+    const member = memberRepository.create({
+      email: 'liketest@test.com',
+      password: 'password123',
+      nickname: 'likeTester',
+      name: '좋아요테스터',
+      birthday: '1990-01-01',
+      phoneNumber: '010-1234-5678',
+    });
+    await memberRepository.save(member);
+
+    const board = boardRepository.create({
+      boardId: 'like-test-board',
+      title: '좋아요 테스트',
+      content: '내용',
+      categoryName: '자유',
+      member,
+      likeCount: 0,
+    });
+    await boardRepository.save(board);
+
+    // when
+    const result = await service.getLikes(board.boardId);
+
+    // then
+    expect(result.boardId).toBe(board.boardId);
+    expect(result.likeCount).toBe(0);
+  });
+
+  it('좋아요 조회 - 성공 (likeCount 1)', async () => {
+    // given
+    const member = memberRepository.create({
+      email: 'likedtest@test.com',
+      password: 'password123',
+      nickname: 'likedTester',
+      name: '좋아요한사람',
+      birthday: '1990-01-01',
+      phoneNumber: '010-1234-5678',
+    });
+    await memberRepository.save(member);
+
+    const board = boardRepository.create({
+      boardId: 'liked-test-board',
+      title: '좋아요 테스트 2',
+      content: '내용',
+      categoryName: '자유',
+      member,
+      likeCount: 1,
+    });
+    await boardRepository.save(board);
+
+    // when
+    const result = await service.getLikes(board.boardId);
+
+    // then
+    expect(result.boardId).toBe(board.boardId);
+    expect(result.likeCount).toBe(1);
+  });
+
+  it('좋아요 조회 - 게시글 없음', async () => {
+    // when & then
+    await expect(service.getLikes('invalid-board-id')).rejects.toThrow(
+      '게시글을 찾을 수 없습니다.',
+    );
+  });
 });

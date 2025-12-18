@@ -1519,4 +1519,59 @@ describe('BoardController (e2e)', () => {
         expect(body.message).toContain('본인의 댓글만 삭제할 수 있습니다.');
       });
   });
+
+  it('/api/boards/:boardId/likes (GET) success - no likes', async () => {
+    const { accessToken } = await createMemberAndLogin(
+      'likeGetTester@test.com',
+      'likeGetTester',
+    );
+
+    // 2) 게시글 생성
+    const createBoardDto = {
+      title: '좋아요 조회 테스트 게시글',
+      content: '좋아요 조회 테스트 내용',
+      categoryName: 'FREE',
+      boardImage: null,
+    };
+
+    interface BoardResponse {
+      message: string;
+      boardId: string;
+    }
+
+    const boardRes = await request(app.getHttpServer())
+      .post('/api/boards')
+      .set('authorization', accessToken)
+      .send(createBoardDto)
+      .expect(201);
+
+    const { boardId } = boardRes.body as BoardResponse;
+
+    // 3) 좋아요 조회
+    const res = await request(app.getHttpServer())
+      .get(`/api/boards/${boardId}/likes`)
+      .expect(200);
+
+    const body = res.body as {
+      boardId: string;
+      likeCount: number;
+    };
+    expect(body.boardId).toBe(boardId);
+    expect(body.likeCount).toBe(0);
+  });
+
+  it('/api/boards/:boardId/likes (GET) board not found', async () => {
+    return request(app.getHttpServer())
+      .get('/api/boards/invalid-board-id/likes')
+      .expect(404)
+      .expect((res) => {
+        const body = res.body as {
+          path: string;
+          timestamp: string;
+          error: string;
+          message: string;
+        };
+        expect(body.message).toContain('게시글을 찾을 수 없습니다.');
+      });
+  });
 });

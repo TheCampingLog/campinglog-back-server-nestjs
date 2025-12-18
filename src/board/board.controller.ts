@@ -22,6 +22,7 @@ import { HttpCode } from '@nestjs/common/decorators/http/http-code.decorator';
 import { RequestAddCommentDto } from './dto/request/request-add-comment.dto';
 import { ResponseGetCommentsWrapperDto } from './dto/response/response-get-comments-wrapper.dto';
 import { RequestSetCommentDto } from './dto/request/request-set-comment.dto';
+import { ResponseGetLikeDto } from './dto/response/response-get-like.dto';
 
 @Controller('api/boards')
 @UseFilters(BoardExceptionFilter)
@@ -180,5 +181,13 @@ export class BoardController {
       message: '댓글이 삭제되었습니다.',
       status: 'success',
     };
+  }
+
+  @Get(':boardId/likes')
+  @HttpCode(200)
+  async getLikes(
+    @Param('boardId') boardId: string,
+  ): Promise<ResponseGetLikeDto> {
+    return await this.boardService.getLikes(boardId);
   }
 }

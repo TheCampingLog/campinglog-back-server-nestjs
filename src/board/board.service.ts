@@ -20,6 +20,7 @@ import { CommentNotFoundException } from './exceptions/comment-not-found.excepti
 import { ResponseGetCommentsWrapperDto } from './dto/response/response-get-comments-wrapper.dto';
 import { NotYourCommentException } from './exceptions/not-your-comment.exception';
 import { RequestSetCommentDto } from './dto/request/request-set-comment.dto';
+import { ResponseGetLikeDto } from './dto/response/response-get-like.dto';
 
 @Injectable()
 export class BoardService {
@@ -403,5 +404,12 @@ export class BoardService {
     // 게시글의 댓글 수 감소
     board.commentCount = Math.max(0, board.commentCount - 1);
     await this.boardRepository.save(board);
+  }
+
+  async getLikes(boardId: string): Promise<ResponseGetLikeDto> {
+    // 게시글 존재 확인
+    const board = await this.getBoardOrThrow(boardId);
+
+    return new ResponseGetLikeDto(board.boardId, board.likeCount);
   }
 }
