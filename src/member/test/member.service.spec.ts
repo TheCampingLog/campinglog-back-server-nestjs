@@ -18,6 +18,7 @@ import { ReqeustVerifyPasswordDto } from '../dto/request/request-verify-password
 import { RequestChangePasswordDto } from '../dto/request/request-change-password.dto';
 import { InvalidPasswordException } from '../exceptions/invalid-password.exception';
 import { PasswordMissMatchException } from '../exceptions/password-miss-match.exception';
+import { DuplicateEmailException } from '../exceptions/duplicate-email.exception';
 import * as bcrypt from 'bcrypt';
 
 describe('MemberService 단위테스트', () => {
@@ -557,5 +558,41 @@ describe('MemberService 단위테스트', () => {
     );
 
     expect(isSame).toBe(true);
+  });
+
+  //회원 가입 시 이메일 중복 확인
+  it('중복된 이메일이 아니면 통과', async (): Promise<void> => {
+    //given
+    const testEmail = 'valid@example.com';
+
+    await memberService.checkEmailAvailable(testEmail);
+  });
+
+  //회원 가입 시 이메일 중복 확인
+  it('중복된 이메일이면 DuplicateEmailException', async (): Promise<void> => {
+    //given
+    const testEmail = 'test@example.com';
+
+    await expect(memberService.checkEmailAvailable(testEmail)).rejects.toThrow(
+      DuplicateEmailException,
+    );
+  });
+
+  //회원 가입 시 닉네임 중복 확인
+  it('중복된 닉네임이 아니면 통과', async (): Promise<void> => {
+    //given
+    const testNickname = 'valid';
+
+    await memberService.checkNicknameAvailable(testNickname);
+  });
+
+  //회원 가입 시 닉네임 중복 확인
+  it('중복된 닉네임이면 DuplicateEmailException', async (): Promise<void> => {
+    //given
+    const testNickname = 'testnickname';
+
+    await expect(
+      memberService.checkNicknameAvailable(testNickname),
+    ).rejects.toThrow(DuplicateNicknameException);
   });
 });
