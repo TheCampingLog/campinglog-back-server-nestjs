@@ -1,4 +1,4 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Controller, Get, Put, HttpCode, UseGuards } from '@nestjs/common';
 import { MemberService } from './member.service';
 import { AccessAuthGuard } from 'src/auth/passport/access-auth.guard';
 import type { JwtData } from 'src/auth/interfaces/jwt.interface';
@@ -12,5 +12,13 @@ export class MemberController {
   @Get('/test')
   test(@AccessMember() accessMember: JwtData) {
     return accessMember;
+  }
+
+  //회원 승급
+  @HttpCode(200)
+  @Put('/grade')
+  async setMemberGrade() {
+    const changed = await this.memberService.updateGradeWeekly();
+    return { changed: changed };
   }
 }
