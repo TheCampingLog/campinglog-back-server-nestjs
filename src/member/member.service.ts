@@ -16,10 +16,16 @@ import { MemberNotFoundException } from './exceptions/member-not-found.exception
 import { DuplicatePhoneNumberException } from './exceptions/duplicate-phone-number.exception';
 import { DuplicateNicknameException } from './exceptions/duplicate-nickname.exception';
 import { RequestUpdateMemberDto } from './dto/request/request-update-member.dto';
+import { ResponseGetMemberBoardDto } from './dto/response/response-get-member-board.dto';
+import { ResponseGetMemberBoardListDto } from './dto/response/response-get-member-board-list.dto';
+import { ResponseGetMemberCommentDto } from './dto/response/response-get-member-comment.dto';
+import { ResponseGetMemberCommentListDto } from './dto/response/response-get-member-comment-list.dto';
 
 @Injectable()
 export class MemberService {
   logger = new Logger('MemberService');
+  private readonly PAGE_SIZE = 4;
+
   constructor(
     @InjectRepository(Member)
     private readonly memberRepository: Repository<Member>,
@@ -237,5 +243,112 @@ export class MemberService {
     }
 
     await this.memberRepository.save(member);
+  }
+
+  // 내가 쓴 글 조회
+  async getBoards(
+    email: string,
+    pageNo: number,
+  ): Promise<ResponseGetMemberBoardListDto> {
+    const isExist = await this.memberRepository.existsBy({ email });
+
+    if (!isExist) {
+      throw new MemberNotFoundException(email);
+    }
+
+    const pageIndex = Math.max(pageNo - 1, 0); // 1-based → 0-based
+
+    const [items, totalElements] = await this.boardRepository.findAndCount({
+      where: { member: { email } },
+      order: { createdAt: 'DESC' },
+      take: this.PAGE_SIZE,
+      skip: pageIndex * this.PAGE_SIZE,
+    });
+
+    const totalPages = Math.ceil(totalElements / this.PAGE_SIZE);
+    const isFirst = pageIndex === 0;
+    const isLast = pageNo >= totalPages;
+
+    // DTO 변환
+    const boards = items.map((board) =>
+      this.mapToResponseGetMemberBoardDto(board),
+    );
+
+    return {
+      items: boards,
+      page: pageNo,
+      size: this.PAGE_SIZE,
+      totalElements,
+      totalPages,
+      first: isFirst,
+      last: isLast,
+    };
+  }
+
+  //내가 쓴 글 조회
+  private mapToResponseGetMemberBoardDto(
+    board: Board,
+  ): ResponseGetMemberBoardDto {
+    return {
+      boardId: board.boardId,
+      title: board.title,
+      content: board.content,
+      boardImage: board.boardImage ?? 'default.png',
+      createdAt: board.createdAt,
+    };
+  }
+
+  // 내가 작성한 댓글 리스트 조회
+  async getComments(
+    email: string,
+    pageNo: number,
+  ): Promise<ResponseGetMemberCommentListDto> {
+    const isExist = await this.memberRepository.existsBy({ email });
+
+    if (!isExist) {
+      throw new MemberNotFoundException(email);
+    }
+
+    const pageIndex = Math.max(pageNo - 1, 0); // 1-based → 0-based
+
+    const [items, totalElements] = await this.commentRepository.findAndCount({
+      where: { member: { email } },
+      relations: ['member', 'board'],
+      order: { createdAt: 'DESC' },
+      take: this.PAGE_SIZE,
+      skip: pageIndex * this.PAGE_SIZE,
+    });
+
+    const totalPages = Math.ceil(totalElements / this.PAGE_SIZE);
+    const isFirst = pageIndex === 0;
+    const isLast = pageNo >= totalPages;
+
+    // DTO 변환
+    const comments = items.map((comment) =>
+      this.mapToResponseMemberCommentDto(comment),
+    );
+
+    return {
+      items: comments,
+      page: pageNo,
+      size: this.PAGE_SIZE,
+      totalElements,
+      totalPages,
+      first: isFirst,
+      last: isLast,
+    };
+  }
+
+  //내가 작성한 댓글 리스트 조회
+  private mapToResponseMemberCommentDto(
+    comment: Comment,
+  ): ResponseGetMemberCommentDto {
+    return {
+      commentId: comment.commentId,
+      content: comment.content,
+      nickname: comment.member.nickname,
+      createdAt: comment.createdAt,
+      boardId: comment.board.boardId,
+    };
   }
 }
