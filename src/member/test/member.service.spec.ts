@@ -9,6 +9,9 @@ import { Comment } from 'src/board/entities/comment.entity';
 import { TestTypeOrmModule } from 'src/config/test-db.module';
 import { createTestMember } from './fixtures/member.fixture';
 import { MemberNotFoundException } from '../exceptions/member-not-found.exception';
+import { RequestUpdateMemberDto } from '../dto/request/request-update-member.dto';
+import { DuplicateNicknameException } from '../exceptions/duplicate-nickname.exception';
+import { DuplicatePhoneNumberException } from '../exceptions/duplicate-phone-number.exception';
 
 describe('MemberService 단위테스트', () => {
   let module: TestingModule;
@@ -284,5 +287,62 @@ describe('MemberService 단위테스트', () => {
     await expect(memberService.getMember(testEmail)).rejects.toThrow(
       MemberNotFoundException,
     );
+  });
+
+  //마이 페이지 정보 수정
+  it('유효한 변경값이면 멤버 정보를 수정', async (): Promise<void> => {
+    //given
+    const testEmail = 'test@example.com';
+    const testRequest: RequestUpdateMemberDto = {
+      nickname: '변경된 닉네임',
+      phoneNumber: '010-9876-4321',
+    };
+
+    //when
+    await memberService.setMember(testEmail, testRequest);
+    const result = await memberRepository.findOneBy({ email: testEmail });
+
+    //then
+    expect(result!.email).toBe(testEmail);
+    expect(result!.nickname).toBe(testRequest.nickname);
+    expect(result!.phoneNumber).toBe(testRequest.phoneNumber);
+  });
+
+  //마이 페이지 정보 수정
+  it('마이페이지 정보 수정시 중복된 닉네임이면 DuplicateNickname 예외 던짐', async (): Promise<void> => {
+    //given
+    const testMember = await createTestMember('duplicateNickname@example.com');
+    testMember.nickname = '중복된 닉네임';
+    const member = memberRepository.create(testMember);
+    await memberRepository.save(member);
+
+    const testRequest: RequestUpdateMemberDto = {
+      nickname: '중복된 닉네임',
+      phoneNumber: '010-9876-4321',
+    };
+
+    await expect(
+      memberService.setMember('test@example.com', testRequest),
+    ).rejects.toThrow(DuplicateNicknameException);
+  });
+
+  //마이 페이지 정보 수정
+  it('마이페이지 정보 수정시 중복된 전화번호이면 DuplicatePhoneNumber 예외 던짐', async (): Promise<void> => {
+    //given
+    const testMember = await createTestMember(
+      'duplicatePhoneNumber@example.com',
+    );
+    testMember.phoneNumber = '010-9876-4321';
+    const member = memberRepository.create(testMember);
+    await memberRepository.save(member);
+
+    const testRequest: RequestUpdateMemberDto = {
+      nickname: '닉네임',
+      phoneNumber: '010-9876-4321',
+    };
+
+    await expect(
+      memberService.setMember('test@example.com', testRequest),
+    ).rejects.toThrow(DuplicatePhoneNumberException);
   });
 });
