@@ -18,6 +18,8 @@ import { ResponseGetMemberDto } from 'src/member/dto/response/response-get-membe
 import { RequestUpdateMemberDto } from 'src/member/dto/request/request-update-member.dto';
 import { ResponseGetMemberBoardListDto } from 'src/member/dto/response/response-get-member-board-list.dto';
 import { ResponseGetMemberCommentListDto } from 'src/member/dto/response/response-get-member-comment-list.dto';
+import { RequestSetProfileImageDto } from 'src/member/dto/request/request-set-profile-image.dto';
+import { ResponseGetMemberProfileImageDto } from 'src/member/dto/response/response-get-member-profile-image.dto';
 
 describe('MemberController (e2e)', () => {
   let app: INestApplication<App>;
@@ -442,5 +444,154 @@ describe('MemberController (e2e)', () => {
     const result = response.body as ResponseGetMemberCommentListDto;
 
     expect(result.items.length).toBe(3);
+  });
+
+  //프로필 사진 조회
+  it('/api/members/mypage/profile-image (GET) success', async () => {
+    //given
+    const testMember = await createAndSaveMember('test1@example.com');
+
+    const validMember = {
+      email: testMember.email,
+      password: 'test1234',
+    };
+
+    const loginResponse = await request(app.getHttpServer())
+      .post('/login')
+      .send(validMember)
+      .expect(200);
+
+    const accessToken = loginResponse.headers['authorization'];
+    expect(accessToken).toBeTruthy();
+
+    //when
+    const response = await request(app.getHttpServer())
+      .get('/api/members/mypage/profile-image')
+      .set('authorization', accessToken)
+      .expect(200);
+
+    const result = response.body as ResponseGetMemberProfileImageDto;
+
+    //then
+    expect(result.profileImage).toBe('/images/member/profile/default.png');
+  });
+
+  //프로필 사진 등록
+  it('/api/members/mypage/profile-image (POST) success', async () => {
+    //given
+    const testMember = await createAndSaveMember('test1@example.com');
+
+    const validMember = {
+      email: testMember.email,
+      password: 'test1234',
+    };
+
+    const loginResponse = await request(app.getHttpServer())
+      .post('/login')
+      .send(validMember)
+      .expect(200);
+
+    const accessToken = loginResponse.headers['authorization'];
+    expect(accessToken).toBeTruthy();
+
+    const testRequest: RequestSetProfileImageDto = {
+      profileImage: '/images/test',
+    };
+
+    //when & then
+    await request(app.getHttpServer())
+      .post('/api/members/mypage/profile-image')
+      .set('authorization', accessToken)
+      .send(testRequest)
+      .expect(201);
+  });
+
+  //프로필 사진 수정
+  it('/api/members/mypage/profile-image (PUT) success', async () => {
+    //given
+    const testMember = await createAndSaveMember('test1@example.com');
+
+    const validMember = {
+      email: testMember.email,
+      password: 'test1234',
+    };
+
+    const loginResponse = await request(app.getHttpServer())
+      .post('/login')
+      .send(validMember)
+      .expect(200);
+
+    const accessToken = loginResponse.headers['authorization'];
+    expect(accessToken).toBeTruthy();
+
+    const testRequest: RequestSetProfileImageDto = {
+      profileImage: '/images/test',
+    };
+
+    //when & then
+    await request(app.getHttpServer())
+      .put('/api/members/mypage/profile-image')
+      .set('authorization', accessToken)
+      .send(testRequest)
+      .expect(204);
+  });
+
+  //프로필 사진 삭제
+  it('/api/members/mypage/profile-image (DELETE) fail', async () => {
+    //given
+    const testMember = await createAndSaveMember('test1@example.com');
+
+    const validMember = {
+      email: testMember.email,
+      password: 'test1234',
+    };
+
+    const loginResponse = await request(app.getHttpServer())
+      .post('/login')
+      .send(validMember)
+      .expect(200);
+
+    const accessToken = loginResponse.headers['authorization'];
+    expect(accessToken).toBeTruthy();
+
+    //when & then
+    await request(app.getHttpServer())
+      .delete('/api/members/mypage/profile-image')
+      .set('authorization', accessToken)
+      .expect(404);
+  });
+
+  //프로필 사진 삭제
+  it('/api/members/mypage/profile-image (DELETE) success', async () => {
+    //given
+    const testMember = await createTestMember('test1@example.com');
+    const member = memberRepository.create(testMember);
+    member.profileImage = '/images/test.png';
+    await memberRepository.save(member);
+
+    const validMember = {
+      email: testMember.email,
+      password: 'test1234',
+    };
+
+    const loginResponse = await request(app.getHttpServer())
+      .post('/login')
+      .send(validMember)
+      .expect(200);
+
+    const accessToken = loginResponse.headers['authorization'];
+    expect(accessToken).toBeTruthy();
+
+    //when & then
+    await request(app.getHttpServer())
+      .delete('/api/members/mypage/profile-image')
+      .set('authorization', accessToken)
+      .expect(204);
+
+    const result = await memberRepository.findOneBy({
+      email: testMember.email,
+    });
+
+    expect(result?.profileImage).toBeFalsy();
   });
 });
