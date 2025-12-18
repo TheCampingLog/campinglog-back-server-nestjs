@@ -14,6 +14,17 @@ import { ILike } from 'typeorm';
 import { ResponseGetBoardDetailDto } from './dto/response/response-get-board-detail.dto';
 import { BoardLike } from './entities/board-like.entity';
 import { ResponseGetBoardByCategoryWrapper } from './dto/response/response-get-board-by-category-wrapper.dto';
+import { Comment } from './entities/comment.entity';
+import { RequestAddCommentDto } from './dto/request/request-add-comment.dto';
+import { CommentNotFoundException } from './exceptions/comment-not-found.exception';
+import { ResponseGetCommentsWrapperDto } from './dto/response/response-get-comments-wrapper.dto';
+import { NotYourCommentException } from './exceptions/not-your-comment.exception';
+import { RequestSetCommentDto } from './dto/request/request-set-comment.dto';
+import { ResponseGetLikeDto } from './dto/response/response-get-like.dto';
+import { RequestAddLikeDto } from './dto/request/request-add-like.dto';
+import { ResponseToggleLikeDto } from './dto/response/response-toggle-like.dto';
+import { AlreadyLikedException } from './exceptions/already-liked.exception';
+import { NotLikedException } from './exceptions/not-liked.exception';
 
 @Injectable()
 export class BoardService {
@@ -24,6 +35,8 @@ export class BoardService {
     private readonly memberRepository: Repository<Member>,
     @InjectRepository(BoardLike)
     private readonly boardLikeRepository: Repository<BoardLike>,
+    @InjectRepository(Comment)
+    private readonly commentRepository: Repository<Comment>,
   ) {}
 
   private async getMemberOrThrow(email: string): Promise<Member> {
@@ -49,6 +62,20 @@ export class BoardService {
 
     return board;
   }
+
+  private async getCommentOrThrow(commentId: string): Promise<Comment> {
+    const comment = await this.commentRepository.findOne({
+      where: { commentId },
+      relations: ['member', 'board'],
+    });
+
+    if (!comment) {
+      throw new CommentNotFoundException('댓글을 찾을 수 없습니다.');
+    }
+
+    return comment;
+  }
+
   async addBoard(dto: RequestAddBoardDto): Promise<Board> {
     const member = await this.getMemberOrThrow(dto.email as string);
 
@@ -254,5 +281,207 @@ export class BoardService {
       isFirst: page === 1,
       isLast: page >= totalPages,
     };
+  }
+
+  async addComment(
+    boardId: string,
+    dto: RequestAddCommentDto,
+  ): Promise<Comment> {
+    const board = await this.getBoardOrThrow(boardId);
+
+    if (!dto.email) {
+      throw new InvalidBoardRequestException('이메일이 필요합니다.');
+    }
+    const member = await this.getMemberOrThrow(dto.email);
+
+    const comment = this.commentRepository.create({
+      content: dto.content,
+      board,
+      member,
+    });
+
+    const savedComment = await this.commentRepository.save(comment);
+
+    board.commentCount += 1;
+    await this.boardRepository.save(board);
+
+    return savedComment;
+  }
+
+  async getComments(
+    boardId: string,
+    page: number,
+    size: number,
+  ): Promise<ResponseGetCommentsWrapperDto> {
+    if (page < 1 || size < 1) {
+      throw new InvalidBoardRequestException('page>=1, size>=1 이어야 합니다.');
+    }
+
+    // 게시글 존재 확인
+    await this.getBoardOrThrow(boardId);
+
+    const skip = (page - 1) * size;
+
+    const [comments, total] = await this.commentRepository.findAndCount({
+      where: {
+        board: { boardId },
+      },
+      relations: ['member'],
+      order: {
+        createdAt: 'DESC',
+      },
+      skip,
+      take: size,
+    });
+
+    const commentsData = comments.map((comment) => ({
+      commentId: comment.commentId,
+      content: comment.content,
+      nickname: comment.member.nickname,
+      createdAt: comment.createdAt,
+    }));
+
+    const totalPages = Math.ceil(total / size);
+
+    return {
+      comments: commentsData,
+      totalElements: total,
+      totalPages,
+      currentPage: page,
+      size,
+    };
+  }
+  async updateComment(
+    boardId: string,
+    commentId: string,
+    dto: RequestSetCommentDto,
+  ): Promise<void> {
+    // 게시글 존재 확인
+    await this.getBoardOrThrow(boardId);
+
+    // 댓글 존재 확인
+    const comment = await this.getCommentOrThrow(commentId);
+
+    // 댓글이 해당 게시글에 속하는지 확인
+    if (comment.board.boardId !== boardId) {
+      throw new InvalidBoardRequestException(
+        '해당 게시글에 속한 댓글이 아닙니다.',
+      );
+    }
+
+    // 이메일이 제공된 경우 작성자 확인
+    if (dto.email && comment.member.email !== dto.email) {
+      throw new NotYourCommentException('본인의 댓글만 수정할 수 있습니다.');
+    }
+
+    // 댓글 내용 업데이트
+    comment.content = dto.content;
+    await this.commentRepository.save(comment);
+  }
+
+  async deleteComment(
+    boardId: string,
+    commentId: string,
+    email?: string,
+  ): Promise<void> {
+    // 게시글 존재 확인
+    const board = await this.getBoardOrThrow(boardId);
+
+    // 댓글 존재 확인
+    const comment = await this.getCommentOrThrow(commentId);
+
+    // 댓글이 해당 게시글에 속하는지 확인
+    if (comment.board.boardId !== boardId) {
+      throw new InvalidBoardRequestException(
+        '해당 게시글에 속한 댓글이 아닙니다.',
+      );
+    }
+
+    // 이메일이 제공된 경우 작성자 확인
+    if (email && comment.member.email !== email) {
+      throw new NotYourCommentException('본인의 댓글만 삭제할 수 있습니다.');
+    }
+
+    // 댓글 삭제
+    await this.commentRepository.remove(comment);
+
+    // 게시글의 댓글 수 감소
+    board.commentCount = Math.max(0, board.commentCount - 1);
+    await this.boardRepository.save(board);
+  }
+
+  async getLikes(boardId: string): Promise<ResponseGetLikeDto> {
+    // 게시글 존재 확인
+    const board = await this.getBoardOrThrow(boardId);
+
+    return new ResponseGetLikeDto(board.boardId, board.likeCount);
+  }
+
+  async addLike(
+    boardId: string,
+    dto: RequestAddLikeDto,
+  ): Promise<ResponseToggleLikeDto> {
+    // 게시글 존재 확인
+    const board = await this.getBoardOrThrow(boardId);
+
+    // 회원 존재 확인
+    const member = await this.getMemberOrThrow(dto.email as string);
+
+    // 이미 좋아요를 눌렀는지 확인
+    const existingLike = await this.boardLikeRepository.findOne({
+      where: {
+        board: { id: board.id },
+        member: { email: member.email },
+      },
+    });
+
+    if (existingLike) {
+      throw new AlreadyLikedException();
+    }
+
+    // 좋아요 생성
+    const boardLike = this.boardLikeRepository.create({
+      board,
+      member,
+    });
+    await this.boardLikeRepository.save(boardLike);
+
+    // 게시글의 좋아요 수 증가
+    board.likeCount += 1;
+    await this.boardRepository.save(board);
+
+    return new ResponseToggleLikeDto(true, board.likeCount);
+  }
+
+  async deleteLike(
+    boardId: string,
+    email: string,
+  ): Promise<ResponseToggleLikeDto> {
+    // 게시글 존재 확인
+    const board = await this.getBoardOrThrow(boardId);
+
+    // 회원 존재 확인
+    const member = await this.getMemberOrThrow(email);
+
+    // 좋아요를 눌렀는지 확인
+    const existingLike = await this.boardLikeRepository.findOne({
+      where: {
+        board: { id: board.id },
+        member: { email: member.email },
+      },
+    });
+
+    if (!existingLike) {
+      throw new NotLikedException();
+    }
+
+    // 좋아요 삭제
+    await this.boardLikeRepository.remove(existingLike);
+
+    // 게시글의 좋아요 수 감소
+    board.likeCount = Math.max(0, board.likeCount - 1);
+    await this.boardRepository.save(board);
+
+    return new ResponseToggleLikeDto(false, board.likeCount);
   }
 }

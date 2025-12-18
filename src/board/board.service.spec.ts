@@ -17,6 +17,7 @@ describe('BoardService', () => {
   let boardRepository: Repository<Board>;
   let memberRepository: Repository<Member>;
   let boardLikeRepository: Repository<BoardLike>;
+  let commentRepository: Repository<Comment>;
   let module: TestingModule | null = null;
 
   beforeAll(async () => {
@@ -42,6 +43,9 @@ describe('BoardService', () => {
     boardLikeRepository = module.get<Repository<BoardLike>>(
       getRepositoryToken(BoardLike),
     );
+    commentRepository = module.get<Repository<Comment>>(
+      getRepositoryToken(Comment),
+    );
   });
 
   afterAll(async () => {
@@ -51,6 +55,7 @@ describe('BoardService', () => {
   });
 
   afterEach(async () => {
+    await commentRepository.clear();
     await boardLikeRepository.clear();
     await boardRepository.clear();
     await memberRepository.clear();
@@ -721,5 +726,909 @@ describe('BoardService', () => {
     await expect(service.getBoardsByCategory('FREE', 1, 0)).rejects.toThrow(
       'page>=1, size>=1 이어야 합니다.',
     );
+  });
+
+  it('댓글 추가 테스트 - 성공', async () => {
+    // given
+    const member = memberRepository.create({
+      email: 'comment@example.com',
+      password: 'password',
+      name: '댓글작성자',
+      nickname: 'commenter',
+      birthday: new Date('1990-01-01'),
+      phoneNumber: '010-1111-2222',
+    });
+    await memberRepository.save(member);
+
+    const board = boardRepository.create({
+      title: '테스트 게시글',
+      content: '내용',
+      categoryName: 'FREE',
+      member: member,
+    });
+    await boardRepository.save(board);
+
+    const dto = {
+      content: '댓글 내용입니다.',
+      boardId: board.boardId,
+      email: member.email,
+    };
+
+    // when
+    const result = await service.addComment(board.boardId, dto);
+
+    // then
+    expect(result).toBeDefined();
+    expect(result.content).toBe('댓글 내용입니다.');
+    expect(result.commentId).toBeDefined();
+    expect(result.getBoardId()).toBe(board.boardId);
+    expect(result.getEmail()).toBe(member.email);
+
+    // 댓글 개수 증가 확인
+    const updatedBoard = await boardRepository.findOne({
+      where: { boardId: board.boardId },
+    });
+    expect(updatedBoard).toBeDefined();
+    expect(updatedBoard!.commentCount).toBe(1);
+  });
+
+  it('댓글 추가 테스트 - 존재하지 않는 게시글', async () => {
+    // given
+    const dto = {
+      content: '댓글 내용',
+      boardId: 'nonexistent-board-id',
+      email: 'test@example.com',
+    };
+
+    // when & then
+    await expect(
+      service.addComment('nonexistent-board-id', dto),
+    ).rejects.toThrow('게시글을 찾을 수 없습니다.');
+  });
+
+  it('댓글 추가 테스트 - 존재하지 않는 회원', async () => {
+    // given
+    const member = memberRepository.create({
+      email: 'test@example.com',
+      password: 'password',
+      name: '테스터',
+      nickname: 'tester',
+      birthday: new Date('1990-01-01'),
+      phoneNumber: '010-2222-3333',
+    });
+    await memberRepository.save(member);
+
+    const board = boardRepository.create({
+      title: '테스트 게시글',
+      content: '내용',
+      categoryName: 'FREE',
+      member: member,
+    });
+    await boardRepository.save(board);
+
+    const dto = {
+      content: '댓글 내용',
+      boardId: board.boardId,
+      email: 'nonexistent@example.com',
+    };
+
+    // when & then
+    await expect(service.addComment(board.boardId, dto)).rejects.toThrow(
+      '회원을 찾을 수 없습니다.',
+    );
+  });
+
+  it('댓글 추가 테스트 - 이메일 누락', async () => {
+    // given
+    const member = memberRepository.create({
+      email: 'test@example.com',
+      password: 'password',
+      name: '테스터',
+      nickname: 'tester',
+      birthday: new Date('1990-01-01'),
+      phoneNumber: '010-3333-4444',
+    });
+    await memberRepository.save(member);
+
+    const board = boardRepository.create({
+      title: '테스트 게시글',
+      content: '내용',
+      categoryName: 'FREE',
+      member: member,
+    });
+    await boardRepository.save(board);
+
+    const dto = {
+      content: '댓글 내용',
+      boardId: board.boardId,
+      email: undefined,
+    };
+
+    // when & then
+    await expect(service.addComment(board.boardId, dto)).rejects.toThrow(
+      '이메일이 필요합니다.',
+    );
+  });
+  it('댓글 조회 - 성공', async () => {
+    // given
+    const member = memberRepository.create({
+      email: 'test@test.com',
+      password: 'password123',
+      nickname: 'tester',
+      name: '테스터',
+      birthday: '1990-01-01',
+      phoneNumber: '010-1234-5678',
+    });
+    await memberRepository.save(member);
+
+    const board = boardRepository.create({
+      boardId: 'test-board-id',
+      title: '테스트 게시글',
+      content: '테스트 내용',
+      categoryName: '자유',
+      member,
+    });
+    await boardRepository.save(board);
+
+    const comment1 = commentRepository.create({
+      content: '첫 번째 댓글',
+      board,
+      member,
+      createdAt: new Date('2024-01-01T10:00:00'),
+    });
+    const comment2 = commentRepository.create({
+      content: '두 번째 댓글',
+      board,
+      member,
+      createdAt: new Date('2024-01-01T11:00:00'),
+    });
+    await commentRepository.save([comment1, comment2]);
+
+    // when
+    const result = await service.getComments(board.boardId, 1, 3);
+
+    // then
+    expect(result.comments).toHaveLength(2);
+    expect(result.comments[0].content).toBe('두 번째 댓글'); // 최신순
+    expect(result.comments[1].content).toBe('첫 번째 댓글');
+    expect(result.totalElements).toBe(2);
+    expect(result.totalPages).toBe(1);
+    expect(result.currentPage).toBe(1);
+    expect(result.size).toBe(3);
+  });
+
+  it('댓글 조회 - 페이지네이션', async () => {
+    // given
+    const member = memberRepository.create({
+      email: 'test2@test.com',
+      password: 'password123',
+      nickname: 'tester2',
+      name: '테스터2',
+      birthday: '1990-01-01',
+      phoneNumber: '010-1234-5678',
+    });
+    await memberRepository.save(member);
+
+    const board = boardRepository.create({
+      boardId: 'test-board-id-2',
+      title: '테스트 게시글',
+      content: '테스트 내용',
+      categoryName: '자유',
+      member,
+    });
+    await boardRepository.save(board);
+
+    for (let i = 0; i < 5; i++) {
+      const comment = commentRepository.create({
+        content: `댓글 ${i}`,
+        board,
+        member,
+        createdAt: new Date(`2024-01-01T${10 + i}:00:00`),
+      });
+      await commentRepository.save(comment);
+    }
+
+    // when
+    const result = await service.getComments(board.boardId, 2, 2);
+
+    // then
+    expect(result.comments).toHaveLength(2);
+    expect(result.totalElements).toBe(5);
+    expect(result.totalPages).toBe(3);
+    expect(result.currentPage).toBe(2);
+    expect(result.size).toBe(2);
+  });
+
+  it('댓글 조회 - 존재하지 않는 게시글', async () => {
+    // when & then
+    await expect(service.getComments('invalid-id', 1, 3)).rejects.toThrow(
+      '게시글을 찾을 수 없습니다.',
+    );
+  });
+
+  it('댓글 조회 - 잘못된 페이지 번호', async () => {
+    // given
+    const member = memberRepository.create({
+      email: 'test3@test.com',
+      password: 'password123',
+      nickname: 'tester3',
+      name: '테스터3',
+      birthday: '1990-01-01',
+      phoneNumber: '010-1234-5678',
+    });
+    await memberRepository.save(member);
+
+    const board = boardRepository.create({
+      boardId: 'test-board-id-3',
+      title: '테스트 게시글',
+      content: '테스트 내용',
+      categoryName: '자유',
+      member,
+    });
+    await boardRepository.save(board);
+
+    // when & then
+    await expect(service.getComments(board.boardId, 0, 3)).rejects.toThrow(
+      'page>=1, size>=1 이어야 합니다.',
+    );
+  });
+
+  it('댓글 수정 - 성공', async () => {
+    // given
+    const member = memberRepository.create({
+      email: 'updateTest@test.com',
+      password: 'password123',
+      nickname: 'updateTester',
+      name: '수정테스터',
+      birthday: '1990-01-01',
+      phoneNumber: '010-1234-5678',
+    });
+    await memberRepository.save(member);
+
+    const board = boardRepository.create({
+      boardId: 'update-board-id',
+      title: '테스트 게시글',
+      content: '테스트 내용',
+      categoryName: '자유',
+      member,
+    });
+    await boardRepository.save(board);
+
+    const comment = commentRepository.create({
+      content: '원래 댓글 내용',
+      board,
+      member,
+    });
+    await commentRepository.save(comment);
+
+    const dto = {
+      content: '수정된 댓글 내용',
+      boardId: board.boardId,
+      commentId: comment.commentId,
+      email: member.email,
+    };
+
+    // when
+    await service.updateComment(board.boardId, comment.commentId, dto);
+
+    // then
+    const updated = await commentRepository.findOne({
+      where: { commentId: comment.commentId },
+    });
+    expect(updated?.content).toBe('수정된 댓글 내용');
+  });
+
+  it('댓글 수정 - 존재하지 않는 게시글', async () => {
+    // when & then
+    await expect(
+      service.updateComment('invalid-board-id', 'comment-id', {
+        content: '수정 내용',
+      }),
+    ).rejects.toThrow('게시글을 찾을 수 없습니다.');
+  });
+
+  it('댓글 수정 - 존재하지 않는 댓글', async () => {
+    // given
+    const member = memberRepository.create({
+      email: 'updateTest2@test.com',
+      password: 'password123',
+      nickname: 'updateTester2',
+      name: '수정테스터2',
+      birthday: '1990-01-01',
+      phoneNumber: '010-1234-5678',
+    });
+    await memberRepository.save(member);
+
+    const board = boardRepository.create({
+      boardId: 'update-board-id-2',
+      title: '테스트 게시글',
+      content: '테스트 내용',
+      categoryName: '자유',
+      member,
+    });
+    await boardRepository.save(board);
+
+    // when & then
+    await expect(
+      service.updateComment(board.boardId, 'invalid-comment-id', {
+        content: '수정 내용',
+      }),
+    ).rejects.toThrow('댓글을 찾을 수 없습니다.');
+  });
+
+  it('댓글 수정 - 다른 게시글의 댓글', async () => {
+    // given
+    const member = memberRepository.create({
+      email: 'updateTest3@test.com',
+      password: 'password123',
+      nickname: 'updateTester3',
+      name: '수정테스터3',
+      birthday: '1990-01-01',
+      phoneNumber: '010-1234-5678',
+    });
+    await memberRepository.save(member);
+
+    const board1 = boardRepository.create({
+      boardId: 'board-1',
+      title: '게시글 1',
+      content: '내용 1',
+      categoryName: '자유',
+      member,
+    });
+    await boardRepository.save(board1);
+
+    const board2 = boardRepository.create({
+      boardId: 'board-2',
+      title: '게시글 2',
+      content: '내용 2',
+      categoryName: '자유',
+      member,
+    });
+    await boardRepository.save(board2);
+
+    const comment = commentRepository.create({
+      content: '댓글 내용',
+      board: board1,
+      member,
+    });
+    await commentRepository.save(comment);
+
+    // when & then
+    await expect(
+      service.updateComment(board2.boardId, comment.commentId, {
+        content: '수정 내용',
+      }),
+    ).rejects.toThrow('해당 게시글에 속한 댓글이 아닙니다.');
+  });
+
+  it('댓글 수정 - 본인 댓글이 아님', async () => {
+    // given
+    const member1 = memberRepository.create({
+      email: 'owner@test.com',
+      password: 'password123',
+      nickname: 'owner',
+      name: '소유자',
+      birthday: '1990-01-01',
+      phoneNumber: '010-1234-5678',
+    });
+    await memberRepository.save(member1);
+
+    const member2 = memberRepository.create({
+      email: 'other@test.com',
+      password: 'password123',
+      nickname: 'other',
+      name: '다른사람',
+      birthday: '1990-01-01',
+      phoneNumber: '010-1234-5678',
+    });
+    await memberRepository.save(member2);
+
+    const board = boardRepository.create({
+      boardId: 'owner-board',
+      title: '게시글',
+      content: '내용',
+      categoryName: '자유',
+      member: member1,
+    });
+    await boardRepository.save(board);
+
+    const comment = commentRepository.create({
+      content: '댓글 내용',
+      board,
+      member: member1,
+    });
+    await commentRepository.save(comment);
+
+    // when & then
+    await expect(
+      service.updateComment(board.boardId, comment.commentId, {
+        content: '수정 내용',
+        email: member2.email,
+      }),
+    ).rejects.toThrow('본인의 댓글만 수정할 수 있습니다.');
+  });
+
+  it('댓글 삭제 - 성공', async () => {
+    // given
+    const member = memberRepository.create({
+      email: 'deletecomment@test.com',
+      password: 'password123',
+      nickname: 'deleter',
+      name: '삭제자',
+      birthday: '1990-01-01',
+      phoneNumber: '010-1234-5678',
+    });
+    await memberRepository.save(member);
+
+    const board = boardRepository.create({
+      boardId: 'delete-comment-board',
+      title: '댓글 삭제 테스트',
+      content: '내용',
+      categoryName: '자유',
+      member,
+      commentCount: 1,
+    });
+    await boardRepository.save(board);
+
+    const comment = commentRepository.create({
+      content: '삭제할 댓글',
+      board,
+      member,
+    });
+    await commentRepository.save(comment);
+
+    // when
+    await service.deleteComment(board.boardId, comment.commentId, member.email);
+
+    // then
+    const deletedComment = await commentRepository.findOne({
+      where: { commentId: comment.commentId },
+    });
+    expect(deletedComment).toBeNull();
+
+    const updatedBoard = await boardRepository.findOne({
+      where: { boardId: board.boardId },
+    });
+    expect(updatedBoard?.commentCount).toBe(0);
+  });
+
+  it('댓글 삭제 - 게시글 없음', async () => {
+    // when & then
+    await expect(
+      service.deleteComment('invalid-board', 'comment-id'),
+    ).rejects.toThrow('게시글을 찾을 수 없습니다.');
+  });
+
+  it('댓글 삭제 - 댓글 없음', async () => {
+    // given
+    const member = memberRepository.create({
+      email: 'deletecommentnotfound@test.com',
+      password: 'password123',
+      nickname: 'deleter',
+      name: '삭제자',
+      birthday: '1990-01-01',
+      phoneNumber: '010-1234-5678',
+    });
+    await memberRepository.save(member);
+
+    const board = boardRepository.create({
+      boardId: 'board-for-delete',
+      title: '게시글',
+      content: '내용',
+      categoryName: '자유',
+      member,
+    });
+    await boardRepository.save(board);
+
+    // when & then
+    await expect(
+      service.deleteComment(board.boardId, 'invalid-comment-id'),
+    ).rejects.toThrow('댓글을 찾을 수 없습니다.');
+  });
+
+  it('댓글 삭제 - 다른 게시글의 댓글', async () => {
+    // given
+    const member = memberRepository.create({
+      email: 'wrongboarddelete@test.com',
+      password: 'password123',
+      nickname: 'deleter',
+      name: '삭제자',
+      birthday: '1990-01-01',
+      phoneNumber: '010-1234-5678',
+    });
+    await memberRepository.save(member);
+
+    const board1 = boardRepository.create({
+      boardId: 'board-1-delete',
+      title: '게시글 1',
+      content: '내용',
+      categoryName: '자유',
+      member,
+    });
+    await boardRepository.save(board1);
+
+    const board2 = boardRepository.create({
+      boardId: 'board-2-delete',
+      title: '게시글 2',
+      content: '내용',
+      categoryName: '자유',
+      member,
+    });
+    await boardRepository.save(board2);
+
+    const comment = commentRepository.create({
+      content: '댓글',
+      board: board1,
+      member,
+    });
+    await commentRepository.save(comment);
+
+    // when & then
+    await expect(
+      service.deleteComment(board2.boardId, comment.commentId),
+    ).rejects.toThrow('해당 게시글에 속한 댓글이 아닙니다.');
+  });
+
+  it('댓글 삭제 - 본인 댓글이 아님', async () => {
+    // given
+    const member1 = memberRepository.create({
+      email: 'ownerdelete@test.com',
+      password: 'password123',
+      nickname: 'owner',
+      name: '소유자',
+      birthday: '1990-01-01',
+      phoneNumber: '010-1234-5678',
+    });
+    await memberRepository.save(member1);
+
+    const member2 = memberRepository.create({
+      email: 'otherdelete@test.com',
+      password: 'password123',
+      nickname: 'other',
+      name: '다른사람',
+      birthday: '1990-01-01',
+      phoneNumber: '010-1234-5678',
+    });
+    await memberRepository.save(member2);
+
+    const board = boardRepository.create({
+      boardId: 'owner-board-delete',
+      title: '게시글',
+      content: '내용',
+      categoryName: '자유',
+      member: member1,
+    });
+    await boardRepository.save(board);
+
+    const comment = commentRepository.create({
+      content: '댓글 내용',
+      board,
+      member: member1,
+    });
+    await commentRepository.save(comment);
+
+    // when & then
+    await expect(
+      service.deleteComment(board.boardId, comment.commentId, member2.email),
+    ).rejects.toThrow('본인의 댓글만 삭제할 수 있습니다.');
+  });
+
+  it('좋아요 조회 - 성공 (likeCount 0)', async () => {
+    // given
+    const member = memberRepository.create({
+      email: 'liketest@test.com',
+      password: 'password123',
+      nickname: 'likeTester',
+      name: '좋아요테스터',
+      birthday: '1990-01-01',
+      phoneNumber: '010-1234-5678',
+    });
+    await memberRepository.save(member);
+
+    const board = boardRepository.create({
+      boardId: 'like-test-board',
+      title: '좋아요 테스트',
+      content: '내용',
+      categoryName: '자유',
+      member,
+      likeCount: 0,
+    });
+    await boardRepository.save(board);
+
+    // when
+    const result = await service.getLikes(board.boardId);
+
+    // then
+    expect(result.boardId).toBe(board.boardId);
+    expect(result.likeCount).toBe(0);
+  });
+
+  it('좋아요 조회 - 성공 (likeCount 1)', async () => {
+    // given
+    const member = memberRepository.create({
+      email: 'likedtest@test.com',
+      password: 'password123',
+      nickname: 'likedTester',
+      name: '좋아요한사람',
+      birthday: '1990-01-01',
+      phoneNumber: '010-1234-5678',
+    });
+    await memberRepository.save(member);
+
+    const board = boardRepository.create({
+      boardId: 'liked-test-board',
+      title: '좋아요 테스트 2',
+      content: '내용',
+      categoryName: '자유',
+      member,
+      likeCount: 1,
+    });
+    await boardRepository.save(board);
+
+    // when
+    const result = await service.getLikes(board.boardId);
+
+    // then
+    expect(result.boardId).toBe(board.boardId);
+    expect(result.likeCount).toBe(1);
+  });
+
+  it('좋아요 조회 - 게시글 없음', async () => {
+    // when & then
+    await expect(service.getLikes('invalid-board-id')).rejects.toThrow(
+      '게시글을 찾을 수 없습니다.',
+    );
+  });
+
+  it('좋아요 추가 - 성공', async () => {
+    // given
+    const member = memberRepository.create({
+      email: 'likeadd@test.com',
+      password: 'password123',
+      nickname: 'likeAddTester',
+      name: '좋아요추가',
+      birthday: '1990-01-01',
+      phoneNumber: '010-1234-5678',
+    });
+    await memberRepository.save(member);
+
+    const board = boardRepository.create({
+      boardId: 'like-add-board',
+      title: '좋아요 추가 테스트',
+      content: '내용',
+      categoryName: '자유',
+      member,
+      likeCount: 0,
+    });
+    await boardRepository.save(board);
+
+    // when
+    const result = await service.addLike(board.boardId, {
+      email: member.email,
+    });
+
+    // then
+    expect(result.isLiked).toBe(true);
+    expect(result.likeCount).toBe(1);
+
+    // 데이터베이스 확인
+    const updatedBoard = await boardRepository.findOne({
+      where: { boardId: board.boardId },
+    });
+    expect(updatedBoard).toBeDefined();
+    expect(updatedBoard!.likeCount).toBe(1);
+
+    const boardLike = await boardLikeRepository.findOne({
+      where: {
+        board: { id: board.id },
+        member: { email: member.email },
+      },
+    });
+    expect(boardLike).toBeDefined();
+  });
+
+  it('좋아요 추가 - 이미 좋아요를 누른 경우', async () => {
+    // given
+    const member = memberRepository.create({
+      email: 'likealready@test.com',
+      password: 'password123',
+      nickname: 'likeAlreadyTester',
+      name: '좋아요중복',
+      birthday: '1990-01-01',
+      phoneNumber: '010-1234-5678',
+    });
+    await memberRepository.save(member);
+
+    const board = boardRepository.create({
+      boardId: 'like-already-board',
+      title: '좋아요 중복 테스트',
+      content: '내용',
+      categoryName: '자유',
+      member,
+      likeCount: 1,
+    });
+    await boardRepository.save(board);
+
+    const boardLike = boardLikeRepository.create({
+      board,
+      member,
+    });
+    await boardLikeRepository.save(boardLike);
+
+    // when & then
+    await expect(
+      service.addLike(board.boardId, { email: member.email }),
+    ).rejects.toThrow('이미 좋아요를 누른 게시글입니다.');
+  });
+
+  it('좋아요 추가 - 게시글 없음', async () => {
+    // given
+    const member = memberRepository.create({
+      email: 'likenoboard@test.com',
+      password: 'password123',
+      nickname: 'likeNoBoardTester',
+      name: '게시글없음',
+      birthday: '1990-01-01',
+      phoneNumber: '010-1234-5678',
+    });
+    await memberRepository.save(member);
+
+    // when & then
+    await expect(
+      service.addLike('invalid-board-id', { email: member.email }),
+    ).rejects.toThrow('게시글을 찾을 수 없습니다.');
+  });
+
+  it('좋아요 추가 - 회원 없음', async () => {
+    // given
+    const member = memberRepository.create({
+      email: 'likeboardonly@test.com',
+      password: 'password123',
+      nickname: 'likeBoardOnlyTester',
+      name: '게시글만있음',
+      birthday: '1990-01-01',
+      phoneNumber: '010-1234-5678',
+    });
+    await memberRepository.save(member);
+
+    const board = boardRepository.create({
+      boardId: 'like-nomember-board',
+      title: '회원 없음 테스트',
+      content: '내용',
+      categoryName: '자유',
+      member,
+      likeCount: 0,
+    });
+    await boardRepository.save(board);
+
+    // when & then
+    await expect(
+      service.addLike(board.boardId, { email: 'invalid@email.com' }),
+    ).rejects.toThrow('회원을 찾을 수 없습니다.');
+  });
+
+  it('좋아요 삭제 - 성공', async () => {
+    // given
+    const member = memberRepository.create({
+      email: 'likedelete@test.com',
+      password: 'password123',
+      nickname: 'likeDeleteTester',
+      name: '좋아요삭제',
+      birthday: '1990-01-01',
+      phoneNumber: '010-1234-5678',
+    });
+    await memberRepository.save(member);
+
+    const board = boardRepository.create({
+      boardId: 'like-delete-board',
+      title: '좋아요 삭제 테스트',
+      content: '내용',
+      categoryName: '자유',
+      member,
+      likeCount: 1,
+    });
+    await boardRepository.save(board);
+
+    const boardLike = boardLikeRepository.create({
+      board,
+      member,
+    });
+    await boardLikeRepository.save(boardLike);
+
+    // when
+    const result = await service.deleteLike(board.boardId, member.email);
+
+    // then
+    expect(result.isLiked).toBe(false);
+    expect(result.likeCount).toBe(0);
+
+    // 데이터베이스 확인
+    const updatedBoard = await boardRepository.findOne({
+      where: { boardId: board.boardId },
+    });
+    expect(updatedBoard).toBeDefined();
+    expect(updatedBoard!.likeCount).toBe(0);
+
+    const deletedLike = await boardLikeRepository.findOne({
+      where: {
+        board: { id: board.id },
+        member: { email: member.email },
+      },
+    });
+    expect(deletedLike).toBeNull();
+  });
+
+  it('좋아요 삭제 - 좋아요를 누르지 않은 경우', async () => {
+    // given
+    const member = memberRepository.create({
+      email: 'likenotliked@test.com',
+      password: 'password123',
+      nickname: 'likeNotLikedTester',
+      name: '좋아요안누름',
+      birthday: '1990-01-01',
+      phoneNumber: '010-1234-5678',
+    });
+    await memberRepository.save(member);
+
+    const board = boardRepository.create({
+      boardId: 'like-notliked-board',
+      title: '좋아요 안누름 테스트',
+      content: '내용',
+      categoryName: '자유',
+      member,
+      likeCount: 0,
+    });
+    await boardRepository.save(board);
+
+    // when & then
+    await expect(
+      service.deleteLike(board.boardId, member.email),
+    ).rejects.toThrow('좋아요를 누르지 않은 게시글입니다.');
+  });
+
+  it('좋아요 삭제 - 게시글 없음', async () => {
+    // given
+    const member = memberRepository.create({
+      email: 'likedelnoboard@test.com',
+      password: 'password123',
+      nickname: 'likeDelNoBoardTester',
+      name: '삭제게시글없음',
+      birthday: '1990-01-01',
+      phoneNumber: '010-1234-5678',
+    });
+    await memberRepository.save(member);
+
+    // when & then
+    await expect(
+      service.deleteLike('invalid-board-id', member.email),
+    ).rejects.toThrow('게시글을 찾을 수 없습니다.');
+  });
+
+  it('좋아요 삭제 - 회원 없음', async () => {
+    // given
+    const member = memberRepository.create({
+      email: 'likedelnomember@test.com',
+      password: 'password123',
+      nickname: 'likeDelNoMemberTester',
+      name: '삭제회원없음',
+      birthday: '1990-01-01',
+      phoneNumber: '010-1234-5678',
+    });
+    await memberRepository.save(member);
+
+    const board = boardRepository.create({
+      boardId: 'like-delnomember-board',
+      title: '회원 없음 삭제 테스트',
+      content: '내용',
+      categoryName: '자유',
+      member,
+      likeCount: 0,
+    });
+    await boardRepository.save(board);
+
+    // when & then
+    await expect(
+      service.deleteLike(board.boardId, 'invalid@email.com'),
+    ).rejects.toThrow('회원을 찾을 수 없습니다.');
   });
 });

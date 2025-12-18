@@ -169,4 +169,57 @@ describe('AppController (e2e)', () => {
     expect(result.items).toHaveLength(0);
     expect(result.totalElement).toBe(0);
   });
+
+  it('/api/camps/reviews/board/rank (GET) 200 - 성공', async () => {
+    const testValue = {
+      limit: 3,
+    };
+
+    await request(app.getHttpServer())
+      .get('/api/camps/reviews/board/rank')
+      .query(testValue)
+      .expect(200)
+      .expect((res) => {
+        const body = res.body as Array<{
+          reviewAverage: number;
+          mapX: string;
+          mapY: string;
+        }>;
+        expect(Array.isArray(body)).toBe(true);
+        // 결과가 있다면 구조 검증
+        if (body.length > 0) {
+          expect(body[0]).toHaveProperty('reviewAverage');
+          expect(body[0]).toHaveProperty('mapX');
+          expect(body[0]).toHaveProperty('mapY');
+        }
+      });
+  });
+
+  it('/api/camps/reviews/board/rank (GET) 200 - 기본값 limit=3', async () => {
+    await request(app.getHttpServer())
+      .get('/api/camps/reviews/board/rank')
+      .expect(200)
+      .expect((res) => {
+        const body = res.body as unknown[];
+        expect(Array.isArray(body)).toBe(true);
+        expect(body.length).toBeLessThanOrEqual(3);
+      });
+  });
+
+  it('/api/camps/reviews/board/rank (GET) 400 - limit이 0 이하', async () => {
+    const testValue = {
+      limit: 0,
+    };
+
+    await request(app.getHttpServer())
+      .get('/api/camps/reviews/board/rank')
+      .query(testValue)
+      .expect(400)
+      .expect((res) => {
+        const body = res.body as { message: string };
+        expect(body.message).toContain(
+          '리뷰 랭킹 조회 시 limit은 0보다 커야 합니다.',
+        );
+      });
+  });
 });

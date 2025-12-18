@@ -13,11 +13,12 @@ import { ResponseGetCampByKeywordList } from './dto/response/response-get-camp-b
 import { NoSearchResultException } from './exceptions/no-search-result.exception';
 import { ResponseGetReviewListWrapper } from './dto/response/response-get-review-list-wrapper.dto';
 import { Review } from './entities/review.entity';
-import { Repository } from 'typeorm';
+import { IsNull, Not, Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ResponseGetReviewList } from './dto/response/response-get-review-list.dto';
-
-// 예상 응답 타입 인터페이스 예시
+import { ResponseGetBoardReviewRankList } from './dto/response/response-get-board-review-rank-list.dto';
+import { InvalidLimitException } from './exceptions/invalid-limit.exception';
+import { ReviewOfBoard } from './entities/review-of-board.entity';
 interface CampingApiResponse {
   response: {
     header: {
@@ -43,6 +44,8 @@ export class CampinfoService {
     private readonly config: ConfigService,
     @InjectRepository(Review)
     private readonly reviewRepository: Repository<Review>,
+    @InjectRepository(ReviewOfBoard)
+    private readonly reviewOfBoardRepository: Repository<ReviewOfBoard>,
   ) {
     this.serviceKey = this.config.get<string>('CAMP_KEY') ?? '';
     if (!this.serviceKey) throw new MissingCampApiKeyException();
@@ -188,6 +191,53 @@ export class CampinfoService {
       totalElement: total,
       totalPages,
     };
+  }
+
+  async getBoardReviewRank(
+    limit: number,
+  ): Promise<ResponseGetBoardReviewRankList[]> {
+    if (limit <= 0) {
+      throw new InvalidLimitException(
+        '리뷰 랭킹 조회 시 limit은 0보다 커야 합니다.',
+      );
+    }
+
+    const reviews = await this.reviewOfBoardRepository.find({
+      where: {
+        reviewAverage: Not(IsNull()),
+      },
+      order: {
+        reviewAverage: 'DESC',
+        id: 'DESC',
+      },
+      take: limit,
+    });
+
+    const results: ResponseGetBoardReviewRankList[] = [];
+
+    for (const review of reviews) {
+      const rank: ResponseGetBoardReviewRankList = {
+        reviewAverage: review.reviewAverage,
+        mapY: review.mapY,
+        mapX: review.mapX,
+      };
+
+      try {
+        const detail = await this.getCampDetail(review.mapX, review.mapY);
+        if (detail) {
+          rank.doNm = detail.doNm;
+          rank.sigunguNm = detail.sigunguNm;
+          rank.firstImageUrl = detail.firstImageUrl;
+          rank.facltNm = detail.facltNm;
+        }
+      } catch {
+        // getCampDetail 실패 시 기본 정보만 반환
+      }
+
+      results.push(rank);
+    }
+
+    return results;
   }
 
   parseItems<T>(json: CampingApiResponse, type: new () => T): T[] {

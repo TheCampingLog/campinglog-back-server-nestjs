@@ -3,7 +3,7 @@ import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from './../src/app.module';
-import { RequestAddMemeberDto } from 'src/auth/dto/request/request-add-member.dto';
+import { RequestAddMemberDto } from 'src/auth/dto/request/request-add-member.dto';
 import { ValidationPipe } from '@nestjs/common';
 import { Member } from 'src/auth/entities/member.entity';
 import { Board } from 'src/board/entities/board.entity';
@@ -11,7 +11,6 @@ import { BoardLike } from 'src/board/entities/board-like.entity';
 import { Comment } from 'src/board/entities/comment.entity';
 import { Repository } from 'typeorm';
 import cookieParser from 'cookie-parser';
-import * as bcrypt from 'bcrypt';
 
 describe('BoardController (e2e)', () => {
   let app: INestApplication<App>;
@@ -42,74 +41,15 @@ describe('BoardController (e2e)', () => {
     await app.init();
     boardRepository = moduleFixture.get('BoardRepository');
     memberRepository = moduleFixture.get('MemberRepository');
+    commentRepository = moduleFixture.get('CommentRepository');
+    boardLikeRepository = moduleFixture.get('BoardLikeRepository');
   });
-
-  const createTestBoard = (email: string, likeCount: number) => {
-    const board = boardRepository.create({
-      title: '첫번째 게시판',
-      content: '내용',
-      categoryName: '자유',
-      likeCount: likeCount,
-      member: { email: email } as Member,
-    });
-    return board;
-  };
-
-  const createAndSaveMember = async (email: string): Promise<Member> => {
-    const testMember = await createTestMember(email);
-    const member = memberRepository.create(testMember);
-    const resultMember = await memberRepository.save(member);
-    return resultMember;
-  };
-
-  const createTestMember = async (email?: string): Promise<Member> => {
-    const hashedPassword = await bcrypt.hash('test1234', 10);
-    return {
-      email: email ?? 'test@example.com',
-      password: hashedPassword,
-      name: 'choi',
-      nickname: 'testnickname',
-      birthday: new Date(2002, 8, 20),
-      phoneNumber: '010-1234-1234',
-    };
-  };
-
-  const createAndSaveBoard = async (
-    email: string,
-    likeCount: number,
-  ): Promise<Board> => {
-    const testBoard = createTestBoard(email, likeCount);
-    const resultBoard = await boardRepository.save(testBoard);
-    return resultBoard;
-  };
-
-  const createAndSaveBoardLike = async (
-    member: Member,
-    board: Board,
-  ): Promise<BoardLike> => {
-    const testBoardLike = boardLikeRepository.create({ member, board });
-    const resultBoardLike = await boardLikeRepository.save(testBoardLike);
-    return resultBoardLike;
-  };
-
-  const createAndSaveComment = async (
-    member: Member,
-    board: Board,
-  ): Promise<Comment> => {
-    const testComment = commentRepository.create({
-      member,
-      board,
-      content: '댓글 내용',
-    });
-    const resultComment = await commentRepository.save(testComment);
-    return resultComment;
-  };
 
   const createMemberAndLogin = async (
     email: string,
     nickname?: string,
   ): Promise<{ email: string; accessToken: string }> => {
-    const testUser: RequestAddMemeberDto = {
+    const testUser: RequestAddMemberDto = {
       email,
       password: 'test1234',
       name: 'tester',
@@ -137,6 +77,8 @@ describe('BoardController (e2e)', () => {
   };
 
   afterEach(async () => {
+    await commentRepository.clear();
+    await boardLikeRepository.clear();
     await boardRepository.clear();
     await memberRepository.clear();
   });
@@ -946,5 +888,986 @@ describe('BoardController (e2e)', () => {
         expect(body).toHaveProperty('message');
         expect(body.message).toContain('page>=1, size>=1 이어야 합니다.');
       });
+  });
+
+  it('/api/boards/:boardId/comment (POST) success', async () => {
+    const { accessToken } = await createMemberAndLogin(
+      'comment-test@example.com',
+      'commentTester',
+    );
+
+    // 2) 게시글 생성
+    const createBoardDto = {
+      title: '댓글 테스트 게시글',
+      content: '댓글 작성 테스트',
+      categoryName: 'FREE',
+      boardImage: '',
+    };
+
+    interface BoardResponse {
+      message: string;
+      boardId: string;
+    }
+
+    const boardRes = await request(app.getHttpServer())
+      .post('/api/boards')
+      .set('authorization', accessToken)
+      .send(createBoardDto)
+      .expect(201);
+
+    const { boardId } = boardRes.body as BoardResponse;
+
+    // 3) POST /api/boards/:boardId/comment 호출
+    return request(app.getHttpServer())
+      .post(`/api/boards/${boardId}/comment`)
+      .set('authorization', accessToken)
+      .send({ content: '댓글 내용입니다.' })
+      .expect(201)
+      .expect((res) => {
+        const body = res.body as {
+          message: string;
+          boardId: string;
+          commentId: string;
+        };
+        expect(body).toHaveProperty('message', '댓글이 등록되었습니다.');
+        expect(body).toHaveProperty('boardId', boardId);
+        expect(body).toHaveProperty('commentId');
+        expect(body.commentId).toBeDefined();
+      });
+  });
+
+  it('/api/boards/:boardId/comment (POST) board not found', async () => {
+    const { accessToken } = await createMemberAndLogin(
+      'comment-notfound@example.com',
+      'notFoundNick',
+    );
+
+    // 존재하지 않는 게시글에 댓글 작성 시도
+    return request(app.getHttpServer())
+      .post('/api/boards/nonexistent-board-id/comment')
+      .set('authorization', accessToken)
+      .send({ content: '댓글 내용' })
+      .expect(404)
+      .expect((res) => {
+        const body = res.body as {
+          path: string;
+          timestamp: string;
+          error: string;
+          message: string;
+        };
+        expect(body).toHaveProperty('path');
+        expect(body).toHaveProperty('timestamp');
+        expect(body).toHaveProperty('error');
+        expect(body).toHaveProperty('message');
+        expect(body.message).toContain('게시글을 찾을 수 없습니다.');
+      });
+  });
+
+  it('/api/boards/:boardId/comment (POST) invalid content', async () => {
+    const { accessToken } = await createMemberAndLogin(
+      'comment-invalid@example.com',
+      'commentInvalidTester',
+    );
+
+    // 2) 게시글 생성
+    const createBoardDto = {
+      title: '댓글 테스트 게시글',
+      content: '댓글 작성 테스트',
+      categoryName: 'FREE',
+      boardImage: '',
+    };
+
+    interface BoardResponse {
+      message: string;
+      boardId: string;
+    }
+
+    const boardRes = await request(app.getHttpServer())
+      .post('/api/boards')
+      .set('authorization', accessToken)
+      .send(createBoardDto)
+      .expect(201);
+
+    const { boardId } = boardRes.body as BoardResponse;
+
+    // 3) 빈 content로 댓글 작성 시도
+    return request(app.getHttpServer())
+      .post(`/api/boards/${boardId}/comment`)
+      .set('authorization', accessToken)
+      .send({ content: '' })
+      .expect(400);
+  });
+
+  it('/api/boards/:boardId/comment (POST) validation error', async () => {
+    const { accessToken } = await createMemberAndLogin(
+      'comment-validation-test@example.com',
+      'commentValidationTester',
+    );
+
+    // 2) 게시글 생성
+    const createBoardDto = {
+      title: '댓글 테스트 게시글',
+      content: '댓글 작성 테스트',
+      categoryName: 'FREE',
+      boardImage: '',
+    };
+
+    interface BoardResponse {
+      message: string;
+      boardId: string;
+    }
+
+    const boardRes = await request(app.getHttpServer())
+      .post('/api/boards')
+      .set('authorization', accessToken)
+      .send(createBoardDto)
+      .expect(201);
+
+    const { boardId } = boardRes.body as BoardResponse;
+
+    // 3) content 누락 (validation error)
+    return request(app.getHttpServer())
+      .post(`/api/boards/${boardId}/comment`)
+      .set('authorization', accessToken)
+      .send({})
+      .expect(400);
+  });
+
+  it('/api/boards/:boardId/comments (GET) success', async () => {
+    const { accessToken } = await createMemberAndLogin(
+      'commentGetTester@test.com',
+      'commentGetTester',
+    );
+
+    // 2) 게시글 생성
+    const createBoardDto = {
+      title: '댓글 조회 테스트 게시글',
+      content: '댓글 조회 테스트 내용',
+      categoryName: 'FREE',
+      boardImage: null,
+    };
+
+    interface BoardResponse {
+      message: string;
+      boardId: string;
+    }
+
+    const boardRes = await request(app.getHttpServer())
+      .post('/api/boards')
+      .set('authorization', accessToken)
+      .send(createBoardDto)
+      .expect(201);
+
+    const { boardId } = boardRes.body as BoardResponse;
+
+    // 3) 댓글 3개 생성
+    for (let i = 1; i <= 3; i++) {
+      await request(app.getHttpServer())
+        .post(`/api/boards/${boardId}/comment`)
+        .set('authorization', accessToken)
+        .send({ content: `댓글 ${i}` })
+        .expect(201);
+    }
+
+    // 4) 댓글 조회
+    const res = await request(app.getHttpServer())
+      .get(`/api/boards/${boardId}/comments`)
+      .query({ page: 1, size: 10 })
+      .expect(200);
+
+    const body = res.body as {
+      comments: Array<{
+        commentId: string;
+        content: string;
+        nickname: string;
+        createdAt: string;
+      }>;
+      totalElements: number;
+      totalPages: number;
+      currentPage: number;
+      size: number;
+    };
+
+    expect(body.comments).toHaveLength(3);
+    expect(body.totalElements).toBe(3);
+    expect(body.totalPages).toBe(1);
+    expect(body.currentPage).toBe(1);
+    expect(body.comments[0].nickname).toBe('commentGetTester');
+  });
+
+  it('/api/boards/:boardId/comments (GET) pagination', async () => {
+    const { accessToken } = await createMemberAndLogin(
+      'commentPaginationTester@test.com',
+      'commentPaginationTester',
+    );
+
+    // 2) 게시글 생성
+    const createBoardDto = {
+      title: '페이지네이션 테스트 게시글',
+      content: '페이지네이션 테스트 내용',
+      categoryName: 'FREE',
+      boardImage: null,
+    };
+
+    interface BoardResponse {
+      message: string;
+      boardId: string;
+    }
+
+    const boardRes = await request(app.getHttpServer())
+      .post('/api/boards')
+      .set('authorization', accessToken)
+      .send(createBoardDto)
+      .expect(201);
+
+    const { boardId } = boardRes.body as BoardResponse;
+
+    // 3) 댓글 5개 생성
+    for (let i = 1; i <= 5; i++) {
+      await request(app.getHttpServer())
+        .post(`/api/boards/${boardId}/comment`)
+        .set('authorization', accessToken)
+        .send({ content: `댓글 ${i}` })
+        .expect(201);
+    }
+
+    // 4) 2페이지 조회 (size=2)
+    const res = await request(app.getHttpServer())
+      .get(`/api/boards/${boardId}/comments`)
+      .query({ page: 2, size: 2 })
+      .expect(200);
+
+    const body = res.body as {
+      comments: Array<{
+        commentId: string;
+        content: string;
+        nickname: string;
+        createdAt: string;
+      }>;
+      totalElements: number;
+      totalPages: number;
+      currentPage: number;
+      size: number;
+    };
+
+    expect(body.comments).toHaveLength(2);
+    expect(body.totalElements).toBe(5);
+    expect(body.totalPages).toBe(3);
+    expect(body.currentPage).toBe(2);
+  });
+
+  it('/api/boards/:boardId/comments (GET) board not found', async () => {
+    return request(app.getHttpServer())
+      .get('/api/boards/invalid-board-id/comments')
+      .query({ page: 1, size: 3 })
+      .expect(404)
+      .expect((res) => {
+        const body = res.body as {
+          path: string;
+          timestamp: string;
+          error: string;
+          message: string;
+        };
+        expect(body.message).toContain('게시글을 찾을 수 없습니다.');
+      });
+  });
+
+  it('/api/boards/:boardId/comments/:commentId (PUT) success', async () => {
+    const { accessToken } = await createMemberAndLogin(
+      'commentUpdateTester@test.com',
+      'commentUpdateTester',
+    );
+
+    // 2) 게시글 생성
+    const createBoardDto = {
+      title: '댓글 수정 테스트 게시글',
+      content: '댓글 수정 테스트 내용',
+      categoryName: 'FREE',
+      boardImage: null,
+    };
+
+    interface BoardResponse {
+      message: string;
+      boardId: string;
+    }
+
+    const boardRes = await request(app.getHttpServer())
+      .post('/api/boards')
+      .set('authorization', accessToken)
+      .send(createBoardDto)
+      .expect(201);
+
+    const { boardId } = boardRes.body as BoardResponse;
+
+    // 3) 댓글 생성
+    const commentRes = await request(app.getHttpServer())
+      .post(`/api/boards/${boardId}/comment`)
+      .set('authorization', accessToken)
+      .send({ content: '원래 댓글 내용' })
+      .expect(201);
+
+    const { commentId } = commentRes.body as { commentId: string };
+
+    // 4) 댓글 수정
+    const res = await request(app.getHttpServer())
+      .put(`/api/boards/${boardId}/comments/${commentId}`)
+      .set('authorization', accessToken)
+      .send({ content: '수정된 댓글 내용' })
+      .expect(200);
+
+    const body = res.body as {
+      message: string;
+      status: string;
+    };
+    expect(body.message).toBe('댓글이 수정되었습니다.');
+    expect(body.status).toBe('success');
+  });
+
+  it('/api/boards/:boardId/comments/:commentId (PUT) board not found', async () => {
+    const { accessToken } = await createMemberAndLogin(
+      'commentUpdateNotFound@test.com',
+      'notFoundNick',
+    );
+
+    return request(app.getHttpServer())
+      .put('/api/boards/invalid-board-id/comments/comment-id')
+      .set('authorization', accessToken)
+      .send({ content: '수정 내용' })
+      .expect(404)
+      .expect((res) => {
+        const body = res.body as {
+          path: string;
+          timestamp: string;
+          error: string;
+          message: string;
+        };
+        expect(body.message).toContain('게시글을 찾을 수 없습니다.');
+      });
+  });
+
+  it('/api/boards/:boardId/comments/:commentId (PUT) comment not found', async () => {
+    const { accessToken } = await createMemberAndLogin(
+      'commentUpdateNotFoundTester@test.com',
+      'commentUpdateNotFoundTester',
+    );
+
+    // 2) 게시글 생성
+    const createBoardDto = {
+      title: '댓글 수정 테스트 게시글',
+      content: '댓글 수정 테스트 내용',
+      categoryName: 'FREE',
+      boardImage: null,
+    };
+
+    interface BoardResponse {
+      message: string;
+      boardId: string;
+    }
+
+    const boardRes = await request(app.getHttpServer())
+      .post('/api/boards')
+      .set('authorization', accessToken)
+      .send(createBoardDto)
+      .expect(201);
+
+    const { boardId } = boardRes.body as BoardResponse;
+
+    // 3) 존재하지 않는 댓글 수정 시도
+    return request(app.getHttpServer())
+      .put(`/api/boards/${boardId}/comments/invalid-comment-id`)
+      .set('authorization', accessToken)
+      .send({ content: '수정 내용' })
+      .expect(404)
+      .expect((res) => {
+        const body = res.body as {
+          path: string;
+          timestamp: string;
+          error: string;
+          message: string;
+        };
+        expect(body.message).toContain('댓글을 찾을 수 없습니다.');
+      });
+  });
+
+  it('/api/boards/:boardId/comments/:commentId (PUT) not your comment', async () => {
+    // 1) 회원 2명 생성
+    const { accessToken: ownerToken } = await createMemberAndLogin(
+      'commentOwner@test.com',
+      'commentOwner',
+    );
+
+    const { accessToken: otherToken } = await createMemberAndLogin(
+      'otherUser@test.com',
+      'otherUser',
+    );
+
+    // 2) 게시글 생성 (owner)
+    const createBoardDto = {
+      title: '댓글 소유자 테스트',
+      content: '댓글 소유자 테스트 내용',
+      categoryName: 'FREE',
+      boardImage: null,
+    };
+
+    interface BoardResponse {
+      message: string;
+      boardId: string;
+    }
+
+    const boardRes = await request(app.getHttpServer())
+      .post('/api/boards')
+      .set('authorization', ownerToken)
+      .send(createBoardDto)
+      .expect(201);
+
+    const { boardId } = boardRes.body as BoardResponse;
+
+    // 3) 댓글 생성 (owner)
+    const commentRes = await request(app.getHttpServer())
+      .post(`/api/boards/${boardId}/comment`)
+      .set('authorization', ownerToken)
+      .send({ content: '원래 댓글 내용' })
+      .expect(201);
+
+    const { commentId } = commentRes.body as { commentId: string };
+
+    // 4) 다른 사람이 댓글 수정 시도 (other)
+    return request(app.getHttpServer())
+      .put(`/api/boards/${boardId}/comments/${commentId}`)
+      .set('authorization', otherToken)
+      .send({ content: '수정 시도' })
+      .expect(403)
+      .expect((res) => {
+        const body = res.body as {
+          path: string;
+          timestamp: string;
+          error: string;
+          message: string;
+        };
+        expect(body.message).toContain('본인의 댓글만 수정할 수 있습니다.');
+      });
+  });
+
+  it('/api/boards/:boardId/comments/:commentId (DELETE) success', async () => {
+    const { accessToken } = await createMemberAndLogin(
+      'commentDeleteTester@test.com',
+      'commentDeleteTester',
+    );
+
+    // 2) 게시글 생성
+    const createBoardDto = {
+      title: '댓글 삭제 테스트 게시글',
+      content: '댓글 삭제 테스트 내용',
+      categoryName: 'FREE',
+      boardImage: null,
+    };
+
+    interface BoardResponse {
+      message: string;
+      boardId: string;
+    }
+
+    const boardRes = await request(app.getHttpServer())
+      .post('/api/boards')
+      .set('authorization', accessToken)
+      .send(createBoardDto)
+      .expect(201);
+
+    const { boardId } = boardRes.body as BoardResponse;
+
+    // 3) 댓글 생성
+    const commentRes = await request(app.getHttpServer())
+      .post(`/api/boards/${boardId}/comment`)
+      .set('authorization', accessToken)
+      .send({ content: '삭제할 댓글' })
+      .expect(201);
+
+    const { commentId } = commentRes.body as { commentId: string };
+
+    // 4) 댓글 삭제
+    const res = await request(app.getHttpServer())
+      .delete(`/api/boards/${boardId}/comments/${commentId}`)
+      .set('authorization', accessToken)
+      .expect(200);
+
+    const body = res.body as {
+      message: string;
+      status: string;
+    };
+    expect(body.message).toBe('댓글이 삭제되었습니다.');
+    expect(body.status).toBe('success');
+  });
+
+  it('/api/boards/:boardId/comments/:commentId (DELETE) board not found', async () => {
+    const { accessToken } = await createMemberAndLogin(
+      'commentDeleteNotFound@test.com',
+      'deleteNotFoundNick',
+    );
+
+    return request(app.getHttpServer())
+      .delete('/api/boards/invalid-board-id/comments/comment-id')
+      .set('authorization', accessToken)
+      .expect(404)
+      .expect((res) => {
+        const body = res.body as {
+          path: string;
+          timestamp: string;
+          error: string;
+          message: string;
+        };
+        expect(body.message).toContain('게시글을 찾을 수 없습니다.');
+      });
+  });
+
+  it('/api/boards/:boardId/comments/:commentId (DELETE) comment not found', async () => {
+    const { accessToken } = await createMemberAndLogin(
+      'commentDeleteNotFoundTester@test.com',
+      'commentDeleteNotFoundTester',
+    );
+
+    // 2) 게시글 생성
+    const createBoardDto = {
+      title: '댓글 삭제 테스트 게시글',
+      content: '댓글 삭제 테스트 내용',
+      categoryName: 'FREE',
+      boardImage: null,
+    };
+
+    interface BoardResponse {
+      message: string;
+      boardId: string;
+    }
+
+    const boardRes = await request(app.getHttpServer())
+      .post('/api/boards')
+      .set('authorization', accessToken)
+      .send(createBoardDto)
+      .expect(201);
+
+    const { boardId } = boardRes.body as BoardResponse;
+
+    // 3) 존재하지 않는 댓글 삭제 시도
+    return request(app.getHttpServer())
+      .delete(`/api/boards/${boardId}/comments/invalid-comment-id`)
+      .set('authorization', accessToken)
+      .expect(404)
+      .expect((res) => {
+        const body = res.body as {
+          path: string;
+          timestamp: string;
+          error: string;
+          message: string;
+        };
+        expect(body.message).toContain('댓글을 찾을 수 없습니다.');
+      });
+  });
+
+  it('/api/boards/:boardId/comments/:commentId (DELETE) not your comment', async () => {
+    // 1) 회원 2명 생성
+    const { accessToken: ownerToken } = await createMemberAndLogin(
+      'commentDeleteOwner@test.com',
+      'commentDeleteOwner',
+    );
+
+    const { accessToken: otherToken } = await createMemberAndLogin(
+      'commentDeleteOther@test.com',
+      'commentDeleteOther',
+    );
+
+    // 2) 게시글 생성 (owner)
+    const createBoardDto = {
+      title: '댓글 삭제 소유자 테스트',
+      content: '댓글 삭제 소유자 테스트 내용',
+      categoryName: 'FREE',
+      boardImage: null,
+    };
+
+    interface BoardResponse {
+      message: string;
+      boardId: string;
+    }
+
+    const boardRes = await request(app.getHttpServer())
+      .post('/api/boards')
+      .set('authorization', ownerToken)
+      .send(createBoardDto)
+      .expect(201);
+
+    const { boardId } = boardRes.body as BoardResponse;
+
+    // 3) 댓글 생성 (owner)
+    const commentRes = await request(app.getHttpServer())
+      .post(`/api/boards/${boardId}/comment`)
+      .set('authorization', ownerToken)
+      .send({ content: '삭제할 댓글' })
+      .expect(201);
+
+    const { commentId } = commentRes.body as { commentId: string };
+
+    // 4) 다른 사람이 댓글 삭제 시도 (other)
+    return request(app.getHttpServer())
+      .delete(`/api/boards/${boardId}/comments/${commentId}`)
+      .set('authorization', otherToken)
+      .expect(403)
+      .expect((res) => {
+        const body = res.body as {
+          path: string;
+          timestamp: string;
+          error: string;
+          message: string;
+        };
+        expect(body.message).toContain('본인의 댓글만 삭제할 수 있습니다.');
+      });
+  });
+
+  it('/api/boards/:boardId/likes (GET) success - no likes', async () => {
+    const { accessToken } = await createMemberAndLogin(
+      'likeGetTester@test.com',
+      'likeGetTester',
+    );
+
+    // 2) 게시글 생성
+    const createBoardDto = {
+      title: '좋아요 조회 테스트 게시글',
+      content: '좋아요 조회 테스트 내용',
+      categoryName: 'FREE',
+      boardImage: null,
+    };
+
+    interface BoardResponse {
+      message: string;
+      boardId: string;
+    }
+
+    const boardRes = await request(app.getHttpServer())
+      .post('/api/boards')
+      .set('authorization', accessToken)
+      .send(createBoardDto)
+      .expect(201);
+
+    const { boardId } = boardRes.body as BoardResponse;
+
+    // 3) 좋아요 조회
+    const res = await request(app.getHttpServer())
+      .get(`/api/boards/${boardId}/likes`)
+      .expect(200);
+
+    const body = res.body as {
+      boardId: string;
+      likeCount: number;
+    };
+    expect(body.boardId).toBe(boardId);
+    expect(body.likeCount).toBe(0);
+  });
+
+  it('/api/boards/:boardId/likes (GET) board not found', async () => {
+    return request(app.getHttpServer())
+      .get('/api/boards/invalid-board-id/likes')
+      .expect(404)
+      .expect((res) => {
+        const body = res.body as {
+          path: string;
+          timestamp: string;
+          error: string;
+          message: string;
+        };
+        expect(body.message).toContain('게시글을 찾을 수 없습니다.');
+      });
+  });
+
+  it('/api/boards/:boardId/likes (POST) success - add like', async () => {
+    const { accessToken } = await createMemberAndLogin(
+      'likeAddTester@test.com',
+      'likeAddTester',
+    );
+
+    // 2) 게시글 생성
+    const createBoardDto = {
+      title: '좋아요 추가 테스트 게시글',
+      content: '좋아요 추가 테스트 내용',
+      categoryName: 'FREE',
+      boardImage: null,
+    };
+
+    interface BoardResponse {
+      message: string;
+      boardId: string;
+    }
+
+    const boardRes = await request(app.getHttpServer())
+      .post('/api/boards')
+      .set('authorization', accessToken)
+      .send(createBoardDto)
+      .expect(201);
+
+    const { boardId } = boardRes.body as BoardResponse;
+
+    // 3) 좋아요 추가
+    const res = await request(app.getHttpServer())
+      .post(`/api/boards/${boardId}/likes`)
+      .set('authorization', accessToken)
+      .send({})
+      .expect(201);
+
+    const body = res.body as {
+      isLiked: boolean;
+      likeCount: number;
+    };
+    expect(body.isLiked).toBe(true);
+    expect(body.likeCount).toBe(1);
+  });
+
+  it('/api/boards/:boardId/likes (POST) already liked', async () => {
+    const { accessToken } = await createMemberAndLogin(
+      'likeAlreadyTester@test.com',
+      'likeAlreadyTester',
+    );
+
+    // 2) 게시글 생성
+    const createBoardDto = {
+      title: '좋아요 중복 테스트 게시글',
+      content: '좋아요 중복 테스트 내용',
+      categoryName: 'FREE',
+      boardImage: null,
+    };
+
+    interface BoardResponse {
+      message: string;
+      boardId: string;
+    }
+
+    const boardRes = await request(app.getHttpServer())
+      .post('/api/boards')
+      .set('authorization', accessToken)
+      .send(createBoardDto)
+      .expect(201);
+
+    const { boardId } = boardRes.body as BoardResponse;
+
+    // 3) 첫 번째 좋아요 추가
+    await request(app.getHttpServer())
+      .post(`/api/boards/${boardId}/likes`)
+      .set('authorization', accessToken)
+      .send({})
+      .expect(201);
+
+    // 4) 두 번째 좋아요 추가 시도 (중복)
+    return request(app.getHttpServer())
+      .post(`/api/boards/${boardId}/likes`)
+      .set('authorization', accessToken)
+      .send({})
+      .expect(409)
+      .expect((res) => {
+        const body = res.body as {
+          path: string;
+          timestamp: string;
+          error: string;
+          message: string;
+        };
+        expect(body.message).toContain('이미 좋아요를 누른 게시글입니다.');
+      });
+  });
+
+  it('/api/boards/:boardId/likes (POST) board not found', async () => {
+    const { accessToken } = await createMemberAndLogin(
+      'likeNoBoardTester@test.com',
+      'likeNoBoardTester',
+    );
+
+    // 2) 존재하지 않는 게시글에 좋아요 추가
+    return request(app.getHttpServer())
+      .post('/api/boards/invalid-board-id/likes')
+      .set('authorization', accessToken)
+      .send({})
+      .expect(404)
+      .expect((res) => {
+        const body = res.body as {
+          path: string;
+          timestamp: string;
+          error: string;
+          message: string;
+        };
+        expect(body.message).toContain('게시글을 찾을 수 없습니다.');
+      });
+  });
+
+  it('/api/boards/:boardId/likes (POST) unauthorized', async () => {
+    const { accessToken } = await createMemberAndLogin(
+      'likeBoardOnlyTester@test.com',
+      'likeBoardOnlyTester',
+    );
+
+    // 2) 게시글 생성
+    const createBoardDto = {
+      title: '인증 테스트 게시글',
+      content: '인증 테스트 내용',
+      categoryName: 'FREE',
+      boardImage: null,
+    };
+
+    interface BoardResponse {
+      message: string;
+      boardId: string;
+    }
+
+    const boardRes = await request(app.getHttpServer())
+      .post('/api/boards')
+      .set('authorization', accessToken)
+      .send(createBoardDto)
+      .expect(201);
+
+    const { boardId } = boardRes.body as BoardResponse;
+
+    // 3) 인증 없이 좋아요 추가 시도
+    return request(app.getHttpServer())
+      .post(`/api/boards/${boardId}/likes`)
+      .send({})
+      .expect(401);
+  });
+
+  it('/api/boards/:boardId/likes (DELETE) success - delete like', async () => {
+    const { accessToken } = await createMemberAndLogin(
+      'likeDeleteTester@test.com',
+      'likeDeleteTester',
+    );
+
+    // 2) 게시글 생성
+    const createBoardDto = {
+      title: '좋아요 삭제 테스트 게시글',
+      content: '좋아요 삭제 테스트 내용',
+      categoryName: 'FREE',
+      boardImage: null,
+    };
+
+    interface BoardResponse {
+      message: string;
+      boardId: string;
+    }
+
+    const boardRes = await request(app.getHttpServer())
+      .post('/api/boards')
+      .set('authorization', accessToken)
+      .send(createBoardDto)
+      .expect(201);
+
+    const { boardId } = boardRes.body as BoardResponse;
+
+    // 3) 좋아요 추가
+    await request(app.getHttpServer())
+      .post(`/api/boards/${boardId}/likes`)
+      .set('authorization', accessToken)
+      .send({})
+      .expect(201);
+
+    // 4) 좋아요 삭제
+    const res = await request(app.getHttpServer())
+      .delete(`/api/boards/${boardId}/likes`)
+      .set('authorization', accessToken)
+      .expect(200);
+
+    const body = res.body as {
+      isLiked: boolean;
+      likeCount: number;
+    };
+    expect(body.isLiked).toBe(false);
+    expect(body.likeCount).toBe(0);
+  });
+
+  it('/api/boards/:boardId/likes (DELETE) not liked', async () => {
+    const { accessToken } = await createMemberAndLogin(
+      'likeNotLikedTester@test.com',
+      'likeNotLikedTester',
+    );
+
+    // 2) 게시글 생성
+    const createBoardDto = {
+      title: '좋아요 안누름 테스트 게시글',
+      content: '좋아요 안누름 테스트 내용',
+      categoryName: 'FREE',
+      boardImage: null,
+    };
+
+    interface BoardResponse {
+      message: string;
+      boardId: string;
+    }
+
+    const boardRes = await request(app.getHttpServer())
+      .post('/api/boards')
+      .set('authorization', accessToken)
+      .send(createBoardDto)
+      .expect(201);
+
+    const { boardId } = boardRes.body as BoardResponse;
+
+    // 3) 좋아요를 누르지 않고 삭제 시도
+    return request(app.getHttpServer())
+      .delete(`/api/boards/${boardId}/likes`)
+      .set('authorization', accessToken)
+      .expect(400)
+      .expect((res) => {
+        const body = res.body as {
+          path: string;
+          timestamp: string;
+          error: string;
+          message: string;
+        };
+        expect(body.message).toContain('좋아요를 누르지 않은 게시글입니다.');
+      });
+  });
+
+  it('/api/boards/:boardId/likes (DELETE) board not found', async () => {
+    const { accessToken } = await createMemberAndLogin(
+      'likeDelNoBoardTester@test.com',
+      'likeDelNoBoardTester',
+    );
+
+    // 2) 존재하지 않는 게시글에서 좋아요 삭제
+    return request(app.getHttpServer())
+      .delete('/api/boards/invalid-board-id/likes')
+      .set('authorization', accessToken)
+      .expect(404)
+      .expect((res) => {
+        const body = res.body as {
+          path: string;
+          timestamp: string;
+          error: string;
+          message: string;
+        };
+        expect(body.message).toContain('게시글을 찾을 수 없습니다.');
+      });
+  });
+
+  it('/api/boards/:boardId/likes (DELETE) unauthorized', async () => {
+    const { accessToken } = await createMemberAndLogin(
+      'likeDelUnauthorizedTester@test.com',
+      'likeDelUnauthorizedTester',
+    );
+
+    // 2) 게시글 생성
+    const createBoardDto = {
+      title: '인증 테스트 게시글',
+      content: '인증 테스트 내용',
+      categoryName: 'FREE',
+      boardImage: null,
+    };
+
+    interface BoardResponse {
+      message: string;
+      boardId: string;
+    }
+
+    const boardRes = await request(app.getHttpServer())
+      .post('/api/boards')
+      .set('authorization', accessToken)
+      .send(createBoardDto)
+      .expect(201);
+
+    const { boardId } = boardRes.body as BoardResponse;
+
+    // 3) 인증 없이 좋아요 삭제 시도
+    return request(app.getHttpServer())
+      .delete(`/api/boards/${boardId}/likes`)
+      .expect(401);
   });
 });

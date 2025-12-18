@@ -13,11 +13,14 @@ import { Board } from 'src/board/entities/board.entity';
 import { RefreshToken } from 'src/auth/entities/refresh-token.entity';
 import { BoardLike } from 'src/board/entities/board-like.entity';
 import { Comment } from 'src/board/entities/comment.entity';
+import { ReviewOfBoard } from './entities/review-of-board.entity';
+import { InvalidLimitException } from './exceptions/invalid-limit.exception';
 
 describe('CampinfoService', () => {
   let service: CampinfoService;
   let reviewRepository: Repository<Review>;
   let memberRepository: Repository<Member>;
+  let reviewOfBoardRepository: Repository<ReviewOfBoard>;
   let module: TestingModule | null = null;
   beforeAll(async () => {
     module = await Test.createTestingModule({
@@ -30,11 +33,26 @@ describe('CampinfoService', () => {
         TypeOrmModule.forRoot({
           type: 'sqlite',
           database: ':memory:',
-          entities: [Member, Review, Board, Comment, BoardLike, RefreshToken],
+          entities: [
+            Member,
+            Review,
+            Board,
+            Comment,
+            BoardLike,
+            RefreshToken,
+            ReviewOfBoard,
+          ],
           synchronize: true,
           dropSchema: true,
         }),
-        TypeOrmModule.forFeature([Member, Review, Board, Comment, BoardLike]),
+        TypeOrmModule.forFeature([
+          Member,
+          Review,
+          Board,
+          Comment,
+          BoardLike,
+          ReviewOfBoard,
+        ]),
       ],
       providers: [CampinfoService],
     }).compile();
@@ -46,6 +64,9 @@ describe('CampinfoService', () => {
     memberRepository = module.get<Repository<Member>>(
       getRepositoryToken(Member),
     );
+    reviewOfBoardRepository = module.get<Repository<ReviewOfBoard>>(
+      getRepositoryToken(ReviewOfBoard),
+    );
   });
 
   afterAll(async () => {
@@ -55,6 +76,7 @@ describe('CampinfoService', () => {
   });
 
   afterEach(async () => {
+    await reviewOfBoardRepository.clear();
     await reviewRepository.clear();
     await memberRepository.clear();
   });
@@ -141,5 +163,71 @@ describe('CampinfoService', () => {
     const result = await service.getReviewList(mapX, mapY, page, size);
     expect(result.items.length).toBeGreaterThan(0);
     expect(result.items).toHaveLength(1);
+  });
+
+  it('인기상승 캠핑장 리뷰 조회 - 성공', async () => {
+    //given
+    const limit = 3;
+
+    // 실제 존재하는 서로 다른 캠핑장 좌표로 테스트 데이터 생성
+    await reviewOfBoardRepository.save([
+      {
+        reviewAverage: 4.5,
+        reviewCount: 10,
+        mapX: '127.2636514', // 실제 캠핑장 좌표 1
+        mapY: '37.0323408',
+      },
+      {
+        reviewAverage: 4.3,
+        reviewCount: 8,
+        mapX: '127.3636514', // 다른 좌표
+        mapY: '37.1323408',
+      },
+      {
+        reviewAverage: 4.1,
+        reviewCount: 5,
+        mapX: '127.4636514', // 다른 좌표
+        mapY: '37.2323408',
+      },
+    ]);
+
+    //when
+    const result = await service.getBoardReviewRank(limit);
+
+    //then
+    expect(result).toBeDefined();
+    expect(result.length).toBe(3);
+    expect(result[0].reviewAverage).toBe(4.5);
+    expect(result[0].mapX).toBe('127.2636514');
+    expect(result[0].mapY).toBe('37.0323408');
+    // reviewAverage 내림차순 정렬 확인
+    expect(result[0].reviewAverage).toBeGreaterThan(result[1].reviewAverage);
+    expect(result[1].reviewAverage).toBeGreaterThan(result[2].reviewAverage);
+  });
+
+  it('인기상승 캠핑장 리뷰 조회 - limit이 0 이하인 경우 에러', async () => {
+    //given
+    const limit = 0;
+
+    //when & then
+    await expect(service.getBoardReviewRank(limit)).rejects.toThrow(
+      InvalidLimitException,
+    );
+    await expect(service.getBoardReviewRank(limit)).rejects.toThrow(
+      '리뷰 랭킹 조회 시 limit은 0보다 커야 합니다.',
+    );
+  });
+
+  it('인기상승 캠핑장 리뷰 조회 - 빈 결과', async () => {
+    //given
+    const limit = 3;
+    // DB에 데이터 없음
+
+    //when
+    const result = await service.getBoardReviewRank(limit);
+
+    //then
+    expect(result).toBeDefined();
+    expect(result.length).toBe(0);
   });
 });

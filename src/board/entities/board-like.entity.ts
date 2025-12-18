@@ -24,11 +24,17 @@ export class BoardLike {
   })
   createdAt: Date;
 
-  @ManyToOne(() => Board, (board) => board.boardLikes, { nullable: false })
+  @ManyToOne(() => Board, (board) => board.boardLikes, {
+    nullable: false,
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'board_id', referencedColumnName: 'id' })
   board: Board;
 
-  @ManyToOne(() => Member, (member) => member.board_like, { nullable: false })
+  @ManyToOne(() => Member, (member) => member.board_like, {
+    nullable: false,
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'email', referencedColumnName: 'email' })
   member: Member;
 

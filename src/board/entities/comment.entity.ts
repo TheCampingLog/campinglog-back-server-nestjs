@@ -28,11 +28,17 @@ export class Comment {
   })
   createdAt: Date;
 
-  @ManyToOne(() => Board, (board) => board.comments, { nullable: false })
+  @ManyToOne(() => Board, (board) => board.comments, {
+    nullable: false,
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'board_id', referencedColumnName: 'id' })
   board: Board;
 
-  @ManyToOne(() => Member, (member) => member.comments, { nullable: false })
+  @ManyToOne(() => Member, (member) => member.comments, {
+    nullable: false,
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'email', referencedColumnName: 'email' })
   member: Member;
 

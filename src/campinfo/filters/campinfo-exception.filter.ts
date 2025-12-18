@@ -10,6 +10,7 @@ import { Request, Response } from 'express';
 import { NoExistCampException } from '../exceptions/no-exist-camp.exception';
 import { MissingCampApiKeyException } from '../exceptions/missing-camp-api-key.exception';
 import { NoSearchResultException } from '../exceptions/no-search-result.exception';
+import { InvalidLimitException } from '../exceptions/invalid-limit.exception';
 @Catch()
 export class CampInfoExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(CampInfoExceptionFilter.name);
@@ -23,8 +24,15 @@ export class CampInfoExceptionFilter implements ExceptionFilter {
     let errorCode: string;
     let message: string;
 
+    // 400 - Bad Request
+    if (exception instanceof InvalidLimitException) {
+      status = HttpStatus.BAD_REQUEST;
+      errorCode = 'INVALID_LIMIT';
+      message = exception.message;
+      this.logger.error(`CampInfo BadRequest: ${message}`);
+    }
     // 404 - Not Found
-    if (
+    else if (
       exception instanceof NoExistCampException ||
       exception instanceof NoSearchResultException ||
       exception instanceof NotFoundException

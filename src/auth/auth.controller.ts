@@ -3,6 +3,7 @@ import {
   Post,
   Get,
   Body,
+  Delete,
   Response,
   UseGuards,
   HttpCode,
@@ -11,7 +12,7 @@ import * as Express from 'express';
 import { AuthService } from './auth.service';
 import { AccessTokenService } from './jwt/access-token.service';
 import { RefreshTokenService } from './jwt/refresh-token.service';
-import { RequestAddMemeberDto } from './dto/request/request-add-member.dto';
+import { RequestAddMemberDto } from './dto/request/request-add-member.dto';
 import { ConfigService } from '@nestjs/config';
 import { LocalAuthGuard } from './passport/local-auth.guard';
 import { AccessAuthGuard } from './passport/access-auth.guard';
@@ -32,8 +33,17 @@ export class AuthController {
   ) {}
 
   @Post('/api/members')
-  async create(@Body() requestAddMemberDto: RequestAddMemeberDto) {
+  async create(@Body() requestAddMemberDto: RequestAddMemberDto) {
     return await this.authService.create(requestAddMemberDto);
+  }
+
+  //회원 탈퇴
+  @UseGuards(AccessAuthGuard)
+  @HttpCode(204)
+  @Delete('/api/members')
+  async deleteMember(@AccessMember() accessMember: JwtData) {
+    await this.authService.deleteMember(accessMember.email);
+    return;
   }
 
   @UseGuards(LocalAuthGuard)

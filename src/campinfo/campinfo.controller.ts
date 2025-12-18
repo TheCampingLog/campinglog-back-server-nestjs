@@ -15,6 +15,7 @@ import { ResponseGetCampDetail } from './dto/response/response-get-camp-detail.d
 import { CampInfoExceptionFilter } from './filters/campinfo-exception.filter';
 import { ResponseGetCampByKeywordList } from './dto/response/response-get-camp-by-keyword-list.dto';
 import { ResponseGetReviewListWrapper } from './dto/response/response-get-review-list-wrapper.dto';
+import { ResponseGetBoardReviewRankList } from './dto/response/response-get-board-review-rank-list.dto';
 
 @ApiTags('camp-info-rest-controller')
 @Controller('/api/camps')
@@ -64,6 +65,14 @@ export class CampinfoController {
     @Query('size') size: number = 4,
   ): Promise<ResponseGetCampWrapper<ResponseGetCampByKeywordList>> {
     return this.campinfoService.getCampByKeyword(keyword, pageNo, size);
+  }
+
+  @Get('/reviews/board/rank')
+  @HttpCode(200)
+  getBoardReviewRank(
+    @Query('limit') limit: number = 3,
+  ): Promise<ResponseGetBoardReviewRankList[]> {
+    return this.campinfoService.getBoardReviewRank(limit);
   }
 
   @Get('/reviews/:mapX/:mapY')

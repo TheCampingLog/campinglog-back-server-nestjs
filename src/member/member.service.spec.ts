@@ -8,6 +8,7 @@ import { BoardLike } from '../board/entities/board-like.entity';
 import { Comment } from '../board/entities/comment.entity';
 import { RefreshToken } from '../auth/entities/refresh-token.entity';
 import { Review } from 'src/campinfo/entities/review.entity';
+import { ReviewOfBoard } from 'src/campinfo/entities/review-of-board.entity';
 
 describe('MemberService 단위테스트', () => {
   let memberService: MemberService;
@@ -20,11 +21,27 @@ describe('MemberService 단위테스트', () => {
         TypeOrmModule.forRoot({
           type: 'sqlite',
           database: ':memory:', // 메모리 DB 사용 (테스트 후 자동 삭제)
-          entities: [Member, Board, Comment, BoardLike, RefreshToken, Review],
+          entities: [
+            Member,
+            Board,
+            Comment,
+            BoardLike,
+            RefreshToken,
+            Review,
+            ReviewOfBoard,
+          ],
           synchronize: true, // 테스트용으로 자동 스키마 생성
           dropSchema: true, // 테스트 시작 시 스키마 초기화
         }),
-        TypeOrmModule.forFeature([Member]),
+        TypeOrmModule.forFeature([
+          Member,
+          Board,
+          Comment,
+          BoardLike,
+          RefreshToken,
+          Review,
+          ReviewOfBoard,
+        ]),
       ],
       providers: [MemberService],
     }).compile();

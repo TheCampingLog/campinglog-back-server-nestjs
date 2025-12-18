@@ -2,9 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { MemberService } from '../member/member.service';
-import { RequestAddMemeberDto } from './dto/request/request-add-member.dto';
+import { RequestAddMemberDto } from './dto/request/request-add-member.dto';
 import { Member } from './entities/member.entity';
 import * as bcrypt from 'bcrypt';
+import { MemberNotFoundException } from 'src/member/exceptions/member-not-found.exception';
 
 @Injectable()
 export class AuthService {
@@ -14,7 +15,7 @@ export class AuthService {
     private readonly memberService: MemberService,
   ) {}
 
-  async create(requestAddMemberDto: RequestAddMemeberDto) {
+  async create(requestAddMemberDto: RequestAddMemberDto) {
     const encryptedPassword = await bcrypt.hash(
       requestAddMemberDto.password,
       10,
@@ -50,5 +51,19 @@ export class AuthService {
     }
 
     return member;
+  }
+
+  //회원 탈퇴
+  async deleteMember(email: string): Promise<void> {
+    const member = await this.memberRepository.findOne({
+      where: { email },
+      relations: ['boards', 'comments', 'board_like', 'refresh_tokens'],
+    });
+
+    if (!member) {
+      throw new MemberNotFoundException(email);
+    }
+
+    await this.memberRepository.remove(member);
   }
 }
