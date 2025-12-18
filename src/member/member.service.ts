@@ -20,6 +20,9 @@ import { ResponseGetMemberBoardDto } from './dto/response/response-get-member-bo
 import { ResponseGetMemberBoardListDto } from './dto/response/response-get-member-board-list.dto';
 import { ResponseGetMemberCommentDto } from './dto/response/response-get-member-comment.dto';
 import { ResponseGetMemberCommentListDto } from './dto/response/response-get-member-comment-list.dto';
+import { ResponseGetMemberProfileImageDto } from './dto/response/response-get-member-profile-image.dto';
+import { RequestSetProfileImageDto } from './dto/request/request-set-profile-image.dto';
+import { ProfileImageNotFoundException } from './exceptions/profile-image-not-found.exception';
 
 @Injectable()
 export class MemberService {
@@ -350,5 +353,73 @@ export class MemberService {
       createdAt: comment.createdAt,
       boardId: comment.board.boardId,
     };
+  }
+
+  //프로필 사진 조회
+  async getProfileImage(
+    email: string,
+  ): Promise<ResponseGetMemberProfileImageDto> {
+    const member = await this.memberRepository.findOneBy({ email });
+
+    if (!member) {
+      throw new MemberNotFoundException(email);
+    }
+
+    if (!member.profileImage) {
+      member.profileImage = '/images/member/profile/default.png';
+    }
+
+    return {
+      profileImage: member.profileImage,
+    };
+  }
+
+  //프로필 사진 등록
+  async addProfileImage(
+    email: string,
+    request: RequestSetProfileImageDto,
+  ): Promise<void> {
+    const member = await this.memberRepository.findOneBy({ email });
+
+    if (!member) {
+      throw new MemberNotFoundException(email);
+    }
+
+    member.profileImage = request.profileImage;
+
+    await this.memberRepository.save(member);
+  }
+
+  //프로필 사진 수정
+  async setProfileImage(
+    email: string,
+    request: RequestSetProfileImageDto,
+  ): Promise<void> {
+    const member = await this.memberRepository.findOneBy({ email });
+
+    if (!member) {
+      throw new MemberNotFoundException(email);
+    }
+
+    member.profileImage = request.profileImage;
+
+    await this.memberRepository.save(member);
+  }
+
+  //프로필 사진 삭제
+  async deleteProfileImage(email: string): Promise<void> {
+    const member = await this.memberRepository.findOneBy({ email });
+
+    if (!member) {
+      throw new MemberNotFoundException(email);
+    }
+
+    if (!member.profileImage) {
+      throw new ProfileImageNotFoundException(email);
+    }
+
+    member.profileImage = null;
+
+    await this.memberRepository.save(member);
   }
 }

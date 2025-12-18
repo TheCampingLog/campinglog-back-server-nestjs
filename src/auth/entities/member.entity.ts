@@ -43,8 +43,8 @@ export class Member {
   @Column({ name: 'phone_number', nullable: false })
   phoneNumber: string;
 
-  @Column({ name: 'profile_image', nullable: true })
-  profileImage?: string;
+  @Column({ name: 'profile_image', type: 'varchar', nullable: true })
+  profileImage?: string | null;
 
   @Column({ name: 'role', nullable: false })
   role?: string;

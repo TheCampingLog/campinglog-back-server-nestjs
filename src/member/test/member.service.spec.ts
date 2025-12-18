@@ -12,6 +12,8 @@ import { MemberNotFoundException } from '../exceptions/member-not-found.exceptio
 import { RequestUpdateMemberDto } from '../dto/request/request-update-member.dto';
 import { DuplicateNicknameException } from '../exceptions/duplicate-nickname.exception';
 import { DuplicatePhoneNumberException } from '../exceptions/duplicate-phone-number.exception';
+import { ProfileImageNotFoundException } from '../exceptions/profile-image-not-found.exception';
+import { RequestSetProfileImageDto } from '../dto/request/request-set-profile-image.dto';
 
 describe('MemberService 단위테스트', () => {
   let module: TestingModule;
@@ -408,5 +410,75 @@ describe('MemberService 단위테스트', () => {
 
     expect(result.first).toBeTruthy();
     expect(result.totalPages).toBe(2);
+  });
+
+  // 프로필 사진 조회
+  it('멤버의 프로필 이미지 값이 null이면 /images/member/profile/default.png 반환', async () => {
+    const result = await memberService.getProfileImage('test@example.com');
+
+    expect(result.profileImage).toBe('/images/member/profile/default.png');
+  });
+
+  // 프로필 사진 조회
+  it('멤버의 프로필 이미지값 /images/member/test.png 반환', async () => {
+    const testMember = await createTestMember('test1@example.com');
+    testMember.profileImage = '/images/member/test.png';
+    const member = memberRepository.create(testMember);
+    await memberRepository.save(member);
+
+    const result = await memberService.getProfileImage(testMember.email);
+
+    expect(result.profileImage).toBe('/images/member/test.png');
+  });
+
+  // 프로필 사진 등록
+  it('멤버의 프로필 이미지를 /images/member/test.png 등록', async () => {
+    const testEmail = 'test@example.com';
+    const testRequest: RequestSetProfileImageDto = {
+      profileImage: '/images/member/test.png}',
+    };
+    await memberService.addProfileImage(testEmail, testRequest);
+
+    const result = await memberRepository.findOneBy({ email: testEmail });
+
+    expect(result?.profileImage).toBe(testRequest.profileImage);
+  });
+
+  // 프로필 사진 수정
+  it('멤버의 프로필 이미지를 /images/member/test.png로 수정 ', async () => {
+    const testEmail = 'test@example.com';
+    const testRequest: RequestSetProfileImageDto = {
+      profileImage: '/images/member/test.png}',
+    };
+    await memberService.setProfileImage(testEmail, testRequest);
+
+    const result = await memberRepository.findOneBy({ email: testEmail });
+
+    expect(result?.profileImage).toBe(testRequest.profileImage);
+  });
+
+  // 프로필 사진 삭제
+  it('멤버의 프로필 이미지가 null이면 ProfileImageNotFound 예외를 던짐 ', async () => {
+    const testEmail = 'test@example.com';
+
+    await expect(memberService.deleteProfileImage(testEmail)).rejects.toThrow(
+      ProfileImageNotFoundException,
+    );
+  });
+
+  // 프로필 사진 삭제
+  it('멤버의 프로필 이미지 삭제 ', async () => {
+    const testMember = await createTestMember('test1@example.com');
+    testMember.profileImage = '/images/member/test.png';
+    const member = memberRepository.create(testMember);
+    await memberRepository.save(member);
+
+    await memberService.deleteProfileImage(testMember.email);
+
+    const result = await memberRepository.findOneBy({
+      email: testMember.email,
+    });
+
+    expect(result?.profileImage).toBeFalsy();
   });
 });

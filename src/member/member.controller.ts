@@ -2,6 +2,8 @@ import {
   Controller,
   Get,
   Put,
+  Post,
+  Delete,
   HttpCode,
   Query,
   UseGuards,
@@ -12,6 +14,7 @@ import { AccessAuthGuard } from 'src/auth/passport/access-auth.guard';
 import type { JwtData } from 'src/auth/interfaces/jwt.interface';
 import { AccessMember } from 'src/auth/decorators/jwt-member.decorator';
 import { RequestUpdateMemberDto } from './dto/request/request-update-member.dto';
+import { RequestSetProfileImageDto } from './dto/request/request-set-profile-image.dto';
 
 @Controller('api/members')
 export class MemberController {
@@ -80,5 +83,49 @@ export class MemberController {
     @Query('pageNo') pageNo: number = 1,
   ) {
     return await this.memberService.getComments(accessMember.email, pageNo);
+  }
+
+  //  프로필 사진 조회
+  @UseGuards(AccessAuthGuard)
+  @HttpCode(200)
+  @Get('/mypage/profile-image')
+  async getProfileImage(@AccessMember() accessMember: JwtData) {
+    return await this.memberService.getProfileImage(accessMember.email);
+  }
+
+  //프로필 사진 등록
+  @UseGuards(AccessAuthGuard)
+  @HttpCode(201)
+  @Post('/mypage/profile-image')
+  async addProfileImage(
+    @AccessMember() accessMember: JwtData,
+    @Body() requestSetProfileImageDto: RequestSetProfileImageDto,
+  ) {
+    return await this.memberService.addProfileImage(
+      accessMember.email,
+      requestSetProfileImageDto,
+    );
+  }
+
+  // 프로필 사진 수정
+  @UseGuards(AccessAuthGuard)
+  @HttpCode(204)
+  @Put('/mypage/profile-image')
+  async setProfileImage(
+    @AccessMember() accessMember: JwtData,
+    @Body() requestSetProfileImageDto: RequestSetProfileImageDto,
+  ) {
+    return await this.memberService.setProfileImage(
+      accessMember.email,
+      requestSetProfileImageDto,
+    );
+  }
+
+  // 프로필 사진 삭제
+  @UseGuards(AccessAuthGuard)
+  @HttpCode(204)
+  @Delete('/mypage/profile-image')
+  async deleteProfileImage(@AccessMember() accessMember: JwtData) {
+    return await this.memberService.deleteProfileImage(accessMember.email);
   }
 }
