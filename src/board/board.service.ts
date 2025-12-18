@@ -373,4 +373,35 @@ export class BoardService {
     comment.content = dto.content;
     await this.commentRepository.save(comment);
   }
+
+  async deleteComment(
+    boardId: string,
+    commentId: string,
+    email?: string,
+  ): Promise<void> {
+    // 게시글 존재 확인
+    const board = await this.getBoardOrThrow(boardId);
+
+    // 댓글 존재 확인
+    const comment = await this.getCommentOrThrow(commentId);
+
+    // 댓글이 해당 게시글에 속하는지 확인
+    if (comment.board.boardId !== boardId) {
+      throw new InvalidBoardRequestException(
+        '해당 게시글에 속한 댓글이 아닙니다.',
+      );
+    }
+
+    // 이메일이 제공된 경우 작성자 확인
+    if (email && comment.member.email !== email) {
+      throw new NotYourCommentException('본인의 댓글만 삭제할 수 있습니다.');
+    }
+
+    // 댓글 삭제
+    await this.commentRepository.remove(comment);
+
+    // 게시글의 댓글 수 감소
+    board.commentCount = Math.max(0, board.commentCount - 1);
+    await this.boardRepository.save(board);
+  }
 }

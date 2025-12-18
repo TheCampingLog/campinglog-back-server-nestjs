@@ -1146,4 +1146,169 @@ describe('BoardService', () => {
       }),
     ).rejects.toThrow('본인의 댓글만 수정할 수 있습니다.');
   });
+
+  it('댓글 삭제 - 성공', async () => {
+    // given
+    const member = memberRepository.create({
+      email: 'deletecomment@test.com',
+      password: 'password123',
+      nickname: 'deleter',
+      name: '삭제자',
+      birthday: '1990-01-01',
+      phoneNumber: '010-1234-5678',
+    });
+    await memberRepository.save(member);
+
+    const board = boardRepository.create({
+      boardId: 'delete-comment-board',
+      title: '댓글 삭제 테스트',
+      content: '내용',
+      categoryName: '자유',
+      member,
+      commentCount: 1,
+    });
+    await boardRepository.save(board);
+
+    const comment = commentRepository.create({
+      content: '삭제할 댓글',
+      board,
+      member,
+    });
+    await commentRepository.save(comment);
+
+    // when
+    await service.deleteComment(board.boardId, comment.commentId, member.email);
+
+    // then
+    const deletedComment = await commentRepository.findOne({
+      where: { commentId: comment.commentId },
+    });
+    expect(deletedComment).toBeNull();
+
+    const updatedBoard = await boardRepository.findOne({
+      where: { boardId: board.boardId },
+    });
+    expect(updatedBoard?.commentCount).toBe(0);
+  });
+
+  it('댓글 삭제 - 게시글 없음', async () => {
+    // when & then
+    await expect(
+      service.deleteComment('invalid-board', 'comment-id'),
+    ).rejects.toThrow('게시글을 찾을 수 없습니다.');
+  });
+
+  it('댓글 삭제 - 댓글 없음', async () => {
+    // given
+    const member = memberRepository.create({
+      email: 'deletecommentnotfound@test.com',
+      password: 'password123',
+      nickname: 'deleter',
+      name: '삭제자',
+      birthday: '1990-01-01',
+      phoneNumber: '010-1234-5678',
+    });
+    await memberRepository.save(member);
+
+    const board = boardRepository.create({
+      boardId: 'board-for-delete',
+      title: '게시글',
+      content: '내용',
+      categoryName: '자유',
+      member,
+    });
+    await boardRepository.save(board);
+
+    // when & then
+    await expect(
+      service.deleteComment(board.boardId, 'invalid-comment-id'),
+    ).rejects.toThrow('댓글을 찾을 수 없습니다.');
+  });
+
+  it('댓글 삭제 - 다른 게시글의 댓글', async () => {
+    // given
+    const member = memberRepository.create({
+      email: 'wrongboarddelete@test.com',
+      password: 'password123',
+      nickname: 'deleter',
+      name: '삭제자',
+      birthday: '1990-01-01',
+      phoneNumber: '010-1234-5678',
+    });
+    await memberRepository.save(member);
+
+    const board1 = boardRepository.create({
+      boardId: 'board-1-delete',
+      title: '게시글 1',
+      content: '내용',
+      categoryName: '자유',
+      member,
+    });
+    await boardRepository.save(board1);
+
+    const board2 = boardRepository.create({
+      boardId: 'board-2-delete',
+      title: '게시글 2',
+      content: '내용',
+      categoryName: '자유',
+      member,
+    });
+    await boardRepository.save(board2);
+
+    const comment = commentRepository.create({
+      content: '댓글',
+      board: board1,
+      member,
+    });
+    await commentRepository.save(comment);
+
+    // when & then
+    await expect(
+      service.deleteComment(board2.boardId, comment.commentId),
+    ).rejects.toThrow('해당 게시글에 속한 댓글이 아닙니다.');
+  });
+
+  it('댓글 삭제 - 본인 댓글이 아님', async () => {
+    // given
+    const member1 = memberRepository.create({
+      email: 'ownerdelete@test.com',
+      password: 'password123',
+      nickname: 'owner',
+      name: '소유자',
+      birthday: '1990-01-01',
+      phoneNumber: '010-1234-5678',
+    });
+    await memberRepository.save(member1);
+
+    const member2 = memberRepository.create({
+      email: 'otherdelete@test.com',
+      password: 'password123',
+      nickname: 'other',
+      name: '다른사람',
+      birthday: '1990-01-01',
+      phoneNumber: '010-1234-5678',
+    });
+    await memberRepository.save(member2);
+
+    const board = boardRepository.create({
+      boardId: 'owner-board-delete',
+      title: '게시글',
+      content: '내용',
+      categoryName: '자유',
+      member: member1,
+    });
+    await boardRepository.save(board);
+
+    const comment = commentRepository.create({
+      content: '댓글 내용',
+      board,
+      member: member1,
+    });
+    await commentRepository.save(comment);
+
+    // when & then
+    await expect(
+      service.deleteComment(board.boardId, comment.commentId, member2.email),
+    ).rejects.toThrow('본인의 댓글만 삭제할 수 있습니다.');
+  });
 });

@@ -1347,4 +1347,176 @@ describe('BoardController (e2e)', () => {
         expect(body.message).toContain('본인의 댓글만 수정할 수 있습니다.');
       });
   });
+
+  it('/api/boards/:boardId/comments/:commentId (DELETE) success', async () => {
+    const { accessToken } = await createMemberAndLogin(
+      'commentDeleteTester@test.com',
+      'commentDeleteTester',
+    );
+
+    // 2) 게시글 생성
+    const createBoardDto = {
+      title: '댓글 삭제 테스트 게시글',
+      content: '댓글 삭제 테스트 내용',
+      categoryName: 'FREE',
+      boardImage: null,
+    };
+
+    interface BoardResponse {
+      message: string;
+      boardId: string;
+    }
+
+    const boardRes = await request(app.getHttpServer())
+      .post('/api/boards')
+      .set('authorization', accessToken)
+      .send(createBoardDto)
+      .expect(201);
+
+    const { boardId } = boardRes.body as BoardResponse;
+
+    // 3) 댓글 생성
+    const commentRes = await request(app.getHttpServer())
+      .post(`/api/boards/${boardId}/comment`)
+      .set('authorization', accessToken)
+      .send({ content: '삭제할 댓글' })
+      .expect(201);
+
+    const { commentId } = commentRes.body as { commentId: string };
+
+    // 4) 댓글 삭제
+    const res = await request(app.getHttpServer())
+      .delete(`/api/boards/${boardId}/comments/${commentId}`)
+      .set('authorization', accessToken)
+      .expect(200);
+
+    const body = res.body as {
+      message: string;
+      status: string;
+    };
+    expect(body.message).toBe('댓글이 삭제되었습니다.');
+    expect(body.status).toBe('success');
+  });
+
+  it('/api/boards/:boardId/comments/:commentId (DELETE) board not found', async () => {
+    const { accessToken } = await createMemberAndLogin(
+      'commentDeleteNotFound@test.com',
+      'deleteNotFoundNick',
+    );
+
+    return request(app.getHttpServer())
+      .delete('/api/boards/invalid-board-id/comments/comment-id')
+      .set('authorization', accessToken)
+      .expect(404)
+      .expect((res) => {
+        const body = res.body as {
+          path: string;
+          timestamp: string;
+          error: string;
+          message: string;
+        };
+        expect(body.message).toContain('게시글을 찾을 수 없습니다.');
+      });
+  });
+
+  it('/api/boards/:boardId/comments/:commentId (DELETE) comment not found', async () => {
+    const { accessToken } = await createMemberAndLogin(
+      'commentDeleteNotFoundTester@test.com',
+      'commentDeleteNotFoundTester',
+    );
+
+    // 2) 게시글 생성
+    const createBoardDto = {
+      title: '댓글 삭제 테스트 게시글',
+      content: '댓글 삭제 테스트 내용',
+      categoryName: 'FREE',
+      boardImage: null,
+    };
+
+    interface BoardResponse {
+      message: string;
+      boardId: string;
+    }
+
+    const boardRes = await request(app.getHttpServer())
+      .post('/api/boards')
+      .set('authorization', accessToken)
+      .send(createBoardDto)
+      .expect(201);
+
+    const { boardId } = boardRes.body as BoardResponse;
+
+    // 3) 존재하지 않는 댓글 삭제 시도
+    return request(app.getHttpServer())
+      .delete(`/api/boards/${boardId}/comments/invalid-comment-id`)
+      .set('authorization', accessToken)
+      .expect(404)
+      .expect((res) => {
+        const body = res.body as {
+          path: string;
+          timestamp: string;
+          error: string;
+          message: string;
+        };
+        expect(body.message).toContain('댓글을 찾을 수 없습니다.');
+      });
+  });
+
+  it('/api/boards/:boardId/comments/:commentId (DELETE) not your comment', async () => {
+    // 1) 회원 2명 생성
+    const { accessToken: ownerToken } = await createMemberAndLogin(
+      'commentDeleteOwner@test.com',
+      'commentDeleteOwner',
+    );
+
+    const { accessToken: otherToken } = await createMemberAndLogin(
+      'commentDeleteOther@test.com',
+      'commentDeleteOther',
+    );
+
+    // 2) 게시글 생성 (owner)
+    const createBoardDto = {
+      title: '댓글 삭제 소유자 테스트',
+      content: '댓글 삭제 소유자 테스트 내용',
+      categoryName: 'FREE',
+      boardImage: null,
+    };
+
+    interface BoardResponse {
+      message: string;
+      boardId: string;
+    }
+
+    const boardRes = await request(app.getHttpServer())
+      .post('/api/boards')
+      .set('authorization', ownerToken)
+      .send(createBoardDto)
+      .expect(201);
+
+    const { boardId } = boardRes.body as BoardResponse;
+
+    // 3) 댓글 생성 (owner)
+    const commentRes = await request(app.getHttpServer())
+      .post(`/api/boards/${boardId}/comment`)
+      .set('authorization', ownerToken)
+      .send({ content: '삭제할 댓글' })
+      .expect(201);
+
+    const { commentId } = commentRes.body as { commentId: string };
+
+    // 4) 다른 사람이 댓글 삭제 시도 (other)
+    return request(app.getHttpServer())
+      .delete(`/api/boards/${boardId}/comments/${commentId}`)
+      .set('authorization', otherToken)
+      .expect(403)
+      .expect((res) => {
+        const body = res.body as {
+          path: string;
+          timestamp: string;
+          error: string;
+          message: string;
+        };
+        expect(body.message).toContain('본인의 댓글만 삭제할 수 있습니다.');
+      });
+  });
 });

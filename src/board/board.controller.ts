@@ -162,4 +162,23 @@ export class BoardController {
       status: 'success',
     };
   }
+
+  @UseGuards(AccessAuthGuard)
+  @Delete(':boardId/comments/:commentId')
+  @HttpCode(200)
+  async deleteComment(
+    @Param('boardId') boardId: string,
+    @Param('commentId') commentId: string,
+    @AccessMember() accessMember: JwtData,
+  ) {
+    await this.boardService.deleteComment(
+      boardId,
+      commentId,
+      accessMember.email,
+    );
+    return {
+      message: '댓글이 삭제되었습니다.',
+      status: 'success',
+    };
+  }
 }
