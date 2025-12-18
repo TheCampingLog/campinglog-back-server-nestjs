@@ -15,6 +15,8 @@ import type { JwtData } from 'src/auth/interfaces/jwt.interface';
 import { AccessMember } from 'src/auth/decorators/jwt-member.decorator';
 import { RequestUpdateMemberDto } from './dto/request/request-update-member.dto';
 import { RequestSetProfileImageDto } from './dto/request/request-set-profile-image.dto';
+import { ReqeustVerifyPasswordDto } from './dto/request/request-verify-password.dto';
+import { RequestChangePasswordDto } from './dto/request/request-change-password.dto';
 
 @Controller('api/members')
 export class MemberController {
@@ -127,5 +129,33 @@ export class MemberController {
   @Delete('/mypage/profile-image')
   async deleteProfileImage(@AccessMember() accessMember: JwtData) {
     return await this.memberService.deleteProfileImage(accessMember.email);
+  }
+
+  // 마이페이지 수정 전 비밀번호 확인
+  @UseGuards(AccessAuthGuard)
+  @HttpCode(200)
+  @Post('/mypage/password/verify')
+  async verifyPassword(
+    @AccessMember() accessMember: JwtData,
+    @Body() reqeustVerifyPassword: ReqeustVerifyPasswordDto,
+  ) {
+    return await this.memberService.verifyPassword(
+      accessMember.email,
+      reqeustVerifyPassword,
+    );
+  }
+
+  // 비밀번호 수정
+  @UseGuards(AccessAuthGuard)
+  @HttpCode(204)
+  @Put('/mypage/password')
+  async setPassword(
+    @AccessMember() accessMember: JwtData,
+    @Body() requestChangePasswordDto: RequestChangePasswordDto,
+  ) {
+    return await this.memberService.setPassword(
+      accessMember.email,
+      requestChangePasswordDto,
+    );
   }
 }

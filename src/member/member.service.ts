@@ -23,6 +23,11 @@ import { ResponseGetMemberCommentListDto } from './dto/response/response-get-mem
 import { ResponseGetMemberProfileImageDto } from './dto/response/response-get-member-profile-image.dto';
 import { RequestSetProfileImageDto } from './dto/request/request-set-profile-image.dto';
 import { ProfileImageNotFoundException } from './exceptions/profile-image-not-found.exception';
+import { ReqeustVerifyPasswordDto } from './dto/request/request-verify-password.dto';
+import { RequestChangePasswordDto } from './dto/request/request-change-password.dto';
+import * as bcrypt from 'bcrypt';
+import { InvalidPasswordException } from './exceptions/invalid-password.exception';
+import { PasswordMissMatchException } from './exceptions/password-miss-match.exception';
 
 @Injectable()
 export class MemberService {
@@ -419,6 +424,51 @@ export class MemberService {
     }
 
     member.profileImage = null;
+
+    await this.memberRepository.save(member);
+  }
+
+  // 마이페이지 수정 전 비밀번호 확인
+  async verifyPassword(email: string, request: ReqeustVerifyPasswordDto) {
+    const member = await this.memberRepository.findOneBy({ email });
+
+    if (!member) {
+      throw new MemberNotFoundException(email);
+    }
+
+    const isPasswordValid = await bcrypt.compare(
+      request.password,
+      member.password,
+    );
+
+    if (!isPasswordValid) {
+      throw new PasswordMissMatchException();
+    }
+  }
+
+  // 비밀번호 수정
+  async setPassword(email: string, request: RequestChangePasswordDto) {
+    const member = await this.memberRepository.findOneBy({ email });
+
+    if (!member) {
+      throw new MemberNotFoundException(email);
+    }
+
+    const isPasswordValid = await bcrypt.compare(
+      request.currentPassword,
+      member.password,
+    );
+
+    if (!isPasswordValid) {
+      throw new PasswordMissMatchException();
+    }
+
+    const isSame = await bcrypt.compare(request.newPassword, member.password);
+
+    if (isSame) {
+      throw new InvalidPasswordException();
+    }
+    member.password = await bcrypt.hash(request.newPassword, 10);
 
     await this.memberRepository.save(member);
   }
