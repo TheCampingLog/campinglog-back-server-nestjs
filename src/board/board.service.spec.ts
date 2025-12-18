@@ -16,6 +16,7 @@ describe('BoardService', () => {
   let boardRepository: Repository<Board>;
   let memberRepository: Repository<Member>;
   let boardLikeRepository: Repository<BoardLike>;
+  let commentRepository: Repository<Comment>;
   let module: TestingModule | null = null;
 
   beforeAll(async () => {
@@ -41,6 +42,9 @@ describe('BoardService', () => {
     boardLikeRepository = module.get<Repository<BoardLike>>(
       getRepositoryToken(BoardLike),
     );
+    commentRepository = module.get<Repository<Comment>>(
+      getRepositoryToken(Comment),
+    );
   });
 
   afterAll(async () => {
@@ -50,6 +54,7 @@ describe('BoardService', () => {
   });
 
   afterEach(async () => {
+    await commentRepository.clear();
     await boardLikeRepository.clear();
     await boardRepository.clear();
     await memberRepository.clear();
@@ -719,6 +724,128 @@ describe('BoardService', () => {
     // when & then
     await expect(service.getBoardsByCategory('FREE', 1, 0)).rejects.toThrow(
       'page>=1, size>=1 이어야 합니다.',
+    );
+  });
+
+  it('댓글 추가 테스트 - 성공', async () => {
+    // given
+    const member = memberRepository.create({
+      email: 'comment@example.com',
+      password: 'password',
+      name: '댓글작성자',
+      nickname: 'commenter',
+      birthday: new Date('1990-01-01'),
+      phoneNumber: '010-1111-2222',
+    });
+    await memberRepository.save(member);
+
+    const board = boardRepository.create({
+      title: '테스트 게시글',
+      content: '내용',
+      categoryName: 'FREE',
+      member: member,
+    });
+    await boardRepository.save(board);
+
+    const dto = {
+      content: '댓글 내용입니다.',
+      boardId: board.boardId,
+      email: member.email,
+    };
+
+    // when
+    const result = await service.addComment(board.boardId, dto);
+
+    // then
+    expect(result).toBeDefined();
+    expect(result.content).toBe('댓글 내용입니다.');
+    expect(result.commentId).toBeDefined();
+    expect(result.getBoardId()).toBe(board.boardId);
+    expect(result.getEmail()).toBe(member.email);
+
+    // 댓글 개수 증가 확인
+    const updatedBoard = await boardRepository.findOne({
+      where: { boardId: board.boardId },
+    });
+    expect(updatedBoard).toBeDefined();
+    expect(updatedBoard!.commentCount).toBe(1);
+  });
+
+  it('댓글 추가 테스트 - 존재하지 않는 게시글', async () => {
+    // given
+    const dto = {
+      content: '댓글 내용',
+      boardId: 'nonexistent-board-id',
+      email: 'test@example.com',
+    };
+
+    // when & then
+    await expect(
+      service.addComment('nonexistent-board-id', dto),
+    ).rejects.toThrow('게시글을 찾을 수 없습니다.');
+  });
+
+  it('댓글 추가 테스트 - 존재하지 않는 회원', async () => {
+    // given
+    const member = memberRepository.create({
+      email: 'test@example.com',
+      password: 'password',
+      name: '테스터',
+      nickname: 'tester',
+      birthday: new Date('1990-01-01'),
+      phoneNumber: '010-2222-3333',
+    });
+    await memberRepository.save(member);
+
+    const board = boardRepository.create({
+      title: '테스트 게시글',
+      content: '내용',
+      categoryName: 'FREE',
+      member: member,
+    });
+    await boardRepository.save(board);
+
+    const dto = {
+      content: '댓글 내용',
+      boardId: board.boardId,
+      email: 'nonexistent@example.com',
+    };
+
+    // when & then
+    await expect(service.addComment(board.boardId, dto)).rejects.toThrow(
+      '회원을 찾을 수 없습니다.',
+    );
+  });
+
+  it('댓글 추가 테스트 - 이메일 누락', async () => {
+    // given
+    const member = memberRepository.create({
+      email: 'test@example.com',
+      password: 'password',
+      name: '테스터',
+      nickname: 'tester',
+      birthday: new Date('1990-01-01'),
+      phoneNumber: '010-3333-4444',
+    });
+    await memberRepository.save(member);
+
+    const board = boardRepository.create({
+      title: '테스트 게시글',
+      content: '내용',
+      categoryName: 'FREE',
+      member: member,
+    });
+    await boardRepository.save(board);
+
+    const dto = {
+      content: '댓글 내용',
+      boardId: board.boardId,
+      email: undefined,
+    };
+
+    // when & then
+    await expect(service.addComment(board.boardId, dto)).rejects.toThrow(
+      '이메일이 필요합니다.',
     );
   });
 });
