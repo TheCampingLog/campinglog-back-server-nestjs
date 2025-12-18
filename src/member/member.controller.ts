@@ -158,4 +158,18 @@ export class MemberController {
       requestChangePasswordDto,
     );
   }
+
+  // 회원 가입시 이메일 중복 확인
+  @HttpCode(200)
+  @Get('/email-availablity')
+  async checkEmailAvailable(@Query('email') email: string) {
+    return await this.memberService.checkEmailAvailable(email);
+  }
+
+  // 회원 가입시 닉네임 중복 확인
+  @HttpCode(200)
+  @Get('/nickname-availablity')
+  async checkNicknameAvailable(@Query('nickname') nickname: string) {
+    return await this.memberService.checkNicknameAvailable(nickname);
+  }
 }

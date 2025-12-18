@@ -28,6 +28,7 @@ import { RequestChangePasswordDto } from './dto/request/request-change-password.
 import * as bcrypt from 'bcrypt';
 import { InvalidPasswordException } from './exceptions/invalid-password.exception';
 import { PasswordMissMatchException } from './exceptions/password-miss-match.exception';
+import { DuplicateEmailException } from './exceptions/duplicate-email.exception';
 
 @Injectable()
 export class MemberService {
@@ -471,5 +472,21 @@ export class MemberService {
     member.password = await bcrypt.hash(request.newPassword, 10);
 
     await this.memberRepository.save(member);
+  }
+
+  // 회원가입 시 이메일 중복 확인
+  async checkEmailAvailable(email: string) {
+    const isExist = await this.memberRepository.existsBy({ email });
+    if (isExist) {
+      throw new DuplicateEmailException();
+    }
+  }
+
+  // 회원가입 시 닉네임 중복 확인
+  async checkNicknameAvailable(nickname: string) {
+    const isExist = await this.memberRepository.existsBy({ nickname });
+    if (isExist) {
+      throw new DuplicateNicknameException();
+    }
   }
 }
