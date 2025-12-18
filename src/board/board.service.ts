@@ -24,6 +24,7 @@ import { ResponseGetLikeDto } from './dto/response/response-get-like.dto';
 import { RequestAddLikeDto } from './dto/request/request-add-like.dto';
 import { ResponseToggleLikeDto } from './dto/response/response-toggle-like.dto';
 import { AlreadyLikedException } from './exceptions/already-liked.exception';
+import { NotLikedException } from './exceptions/not-liked.exception';
 
 @Injectable()
 export class BoardService {
@@ -450,5 +451,37 @@ export class BoardService {
     await this.boardRepository.save(board);
 
     return new ResponseToggleLikeDto(true, board.likeCount);
+  }
+
+  async deleteLike(
+    boardId: string,
+    email: string,
+  ): Promise<ResponseToggleLikeDto> {
+    // 게시글 존재 확인
+    const board = await this.getBoardOrThrow(boardId);
+
+    // 회원 존재 확인
+    const member = await this.getMemberOrThrow(email);
+
+    // 좋아요를 눌렀는지 확인
+    const existingLike = await this.boardLikeRepository.findOne({
+      where: {
+        board: { id: board.id },
+        member: { email: member.email },
+      },
+    });
+
+    if (!existingLike) {
+      throw new NotLikedException();
+    }
+
+    // 좋아요 삭제
+    await this.boardLikeRepository.remove(existingLike);
+
+    // 게시글의 좋아요 수 감소
+    board.likeCount = Math.max(0, board.likeCount - 1);
+    await this.boardRepository.save(board);
+
+    return new ResponseToggleLikeDto(false, board.likeCount);
   }
 }

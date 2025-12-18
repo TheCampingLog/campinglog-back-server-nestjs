@@ -1724,4 +1724,150 @@ describe('BoardController (e2e)', () => {
       .send({})
       .expect(401);
   });
+
+  it('/api/boards/:boardId/likes (DELETE) success - delete like', async () => {
+    const { accessToken } = await createMemberAndLogin(
+      'likeDeleteTester@test.com',
+      'likeDeleteTester',
+    );
+
+    // 2) 게시글 생성
+    const createBoardDto = {
+      title: '좋아요 삭제 테스트 게시글',
+      content: '좋아요 삭제 테스트 내용',
+      categoryName: 'FREE',
+      boardImage: null,
+    };
+
+    interface BoardResponse {
+      message: string;
+      boardId: string;
+    }
+
+    const boardRes = await request(app.getHttpServer())
+      .post('/api/boards')
+      .set('authorization', accessToken)
+      .send(createBoardDto)
+      .expect(201);
+
+    const { boardId } = boardRes.body as BoardResponse;
+
+    // 3) 좋아요 추가
+    await request(app.getHttpServer())
+      .post(`/api/boards/${boardId}/likes`)
+      .set('authorization', accessToken)
+      .send({})
+      .expect(201);
+
+    // 4) 좋아요 삭제
+    const res = await request(app.getHttpServer())
+      .delete(`/api/boards/${boardId}/likes`)
+      .set('authorization', accessToken)
+      .expect(200);
+
+    const body = res.body as {
+      isLiked: boolean;
+      likeCount: number;
+    };
+    expect(body.isLiked).toBe(false);
+    expect(body.likeCount).toBe(0);
+  });
+
+  it('/api/boards/:boardId/likes (DELETE) not liked', async () => {
+    const { accessToken } = await createMemberAndLogin(
+      'likeNotLikedTester@test.com',
+      'likeNotLikedTester',
+    );
+
+    // 2) 게시글 생성
+    const createBoardDto = {
+      title: '좋아요 안누름 테스트 게시글',
+      content: '좋아요 안누름 테스트 내용',
+      categoryName: 'FREE',
+      boardImage: null,
+    };
+
+    interface BoardResponse {
+      message: string;
+      boardId: string;
+    }
+
+    const boardRes = await request(app.getHttpServer())
+      .post('/api/boards')
+      .set('authorization', accessToken)
+      .send(createBoardDto)
+      .expect(201);
+
+    const { boardId } = boardRes.body as BoardResponse;
+
+    // 3) 좋아요를 누르지 않고 삭제 시도
+    return request(app.getHttpServer())
+      .delete(`/api/boards/${boardId}/likes`)
+      .set('authorization', accessToken)
+      .expect(400)
+      .expect((res) => {
+        const body = res.body as {
+          path: string;
+          timestamp: string;
+          error: string;
+          message: string;
+        };
+        expect(body.message).toContain('좋아요를 누르지 않은 게시글입니다.');
+      });
+  });
+
+  it('/api/boards/:boardId/likes (DELETE) board not found', async () => {
+    const { accessToken } = await createMemberAndLogin(
+      'likeDelNoBoardTester@test.com',
+      'likeDelNoBoardTester',
+    );
+
+    // 2) 존재하지 않는 게시글에서 좋아요 삭제
+    return request(app.getHttpServer())
+      .delete('/api/boards/invalid-board-id/likes')
+      .set('authorization', accessToken)
+      .expect(404)
+      .expect((res) => {
+        const body = res.body as {
+          path: string;
+          timestamp: string;
+          error: string;
+          message: string;
+        };
+        expect(body.message).toContain('게시글을 찾을 수 없습니다.');
+      });
+  });
+
+  it('/api/boards/:boardId/likes (DELETE) unauthorized', async () => {
+    const { accessToken } = await createMemberAndLogin(
+      'likeDelUnauthorizedTester@test.com',
+      'likeDelUnauthorizedTester',
+    );
+
+    // 2) 게시글 생성
+    const createBoardDto = {
+      title: '인증 테스트 게시글',
+      content: '인증 테스트 내용',
+      categoryName: 'FREE',
+      boardImage: null,
+    };
+
+    interface BoardResponse {
+      message: string;
+      boardId: string;
+    }
+
+    const boardRes = await request(app.getHttpServer())
+      .post('/api/boards')
+      .set('authorization', accessToken)
+      .send(createBoardDto)
+      .expect(201);
+
+    const { boardId } = boardRes.body as BoardResponse;
+
+    // 3) 인증 없이 좋아요 삭제 시도
+    return request(app.getHttpServer())
+      .delete(`/api/boards/${boardId}/likes`)
+      .expect(401);
+  });
 });
