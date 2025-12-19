@@ -11,13 +11,14 @@ import { MissingCampApiKeyException } from './exceptions/missing-camp-api-key.ex
 import { NoExistCampException } from './exceptions/no-exist-camp.exception';
 import { ResponseGetCampByKeywordList } from './dto/response/response-get-camp-by-keyword-list.dto';
 import { NoSearchResultException } from './exceptions/no-search-result.exception';
-import { ResponseGetBoardReviewRankList } from './dto/response/response-get-board-review-rank-list.dto';
+import { ResponseGetReviewListWrapper } from './dto/response/response-get-review-list-wrapper.dto';
+import { Review } from './entities/review.entity';
+import { IsNull, Not, Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { ReviewOfBoard } from './entities/review-of-board.entity';
+import { ResponseGetReviewList } from './dto/response/response-get-review-list.dto';
+import { ResponseGetBoardReviewRankList } from './dto/response/response-get-board-review-rank-list.dto';
 import { InvalidLimitException } from './exceptions/invalid-limit.exception';
-
-// 예상 응답 타입 인터페이스 예시
+import { ReviewOfBoard } from './entities/review-of-board.entity';
 interface CampingApiResponse {
   response: {
     header: {
@@ -41,6 +42,8 @@ export class CampinfoService {
   constructor(
     private readonly httpService: HttpService,
     private readonly config: ConfigService,
+    @InjectRepository(Review)
+    private readonly reviewRepository: Repository<Review>,
     @InjectRepository(ReviewOfBoard)
     private readonly reviewOfBoardRepository: Repository<ReviewOfBoard>,
   ) {
@@ -150,28 +153,44 @@ export class CampinfoService {
     return result;
   }
 
-  parseItems<T>(json: CampingApiResponse, type: new () => T): T[] {
-    const items = json?.response?.body?.items?.item;
+  async getReviewList(
+    mapX: string,
+    mapY: string,
+    page: number,
+    size: number,
+  ): Promise<ResponseGetReviewListWrapper> {
+    const [reviews, total] = await this.reviewRepository.findAndCount({
+      where: {
+        mapX,
+        mapY,
+      },
+      relations: ['member'],
+      order: {
+        createAt: 'DESC',
+      },
+      skip: (page - 1) * size,
+      take: size,
+    });
+    const totalPages = Math.ceil(total / size);
 
-    if (!items) return [];
+    const items: ResponseGetReviewList[] = reviews.map((review) => ({
+      reviewImage: review.reviewImage,
+      reviewContent: review.reviewContent,
+      reviewScore: review.reviewScore,
+      email: review.member.email,
+      nickname: review.member.nickname,
+      createAt: review.createAt,
+      updateAt: review.updateAt,
+    }));
 
-    const result: T[] = [];
-    if (Array.isArray(items)) {
-      items.map((item) =>
-        result.push(
-          plainToInstance(type, item, { excludeExtraneousValues: true }),
-        ),
-      );
-    } else if (typeof items === 'object') {
-      result.push(
-        plainToInstance(type, items, { excludeExtraneousValues: true }),
-      );
-    }
-    return result;
-  }
-
-  parseTotalCount(json: CampingApiResponse): number {
-    return json?.response?.body?.totalCount ?? 0;
+    return {
+      items,
+      page,
+      size,
+      hasNext: page + 1 < totalPages,
+      totalElement: total,
+      totalPages,
+    };
   }
 
   async getBoardReviewRank(
@@ -184,6 +203,9 @@ export class CampinfoService {
     }
 
     const reviews = await this.reviewOfBoardRepository.find({
+      where: {
+        reviewAverage: Not(IsNull()),
+      },
       order: {
         reviewAverage: 'DESC',
         id: 'DESC',
@@ -216,5 +238,29 @@ export class CampinfoService {
     }
 
     return results;
+  }
+
+  parseItems<T>(json: CampingApiResponse, type: new () => T): T[] {
+    const items = json?.response?.body?.items?.item;
+
+    if (!items) return [];
+
+    const result: T[] = [];
+    if (Array.isArray(items)) {
+      items.map((item) =>
+        result.push(
+          plainToInstance(type, item, { excludeExtraneousValues: true }),
+        ),
+      );
+    } else if (typeof items === 'object') {
+      result.push(
+        plainToInstance(type, items, { excludeExtraneousValues: true }),
+      );
+    }
+    return result;
+  }
+
+  parseTotalCount(json: CampingApiResponse): number {
+    return json?.response?.body?.totalCount ?? 0;
   }
 }

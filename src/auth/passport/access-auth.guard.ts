@@ -1,5 +1,14 @@
-import { Injectable } from '@nestjs/common';
+import { ExecutionContext, Injectable } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-
+import { Request } from 'express';
 @Injectable()
-export class AccessAuthGuard extends AuthGuard('jwt-access') {}
+export class AccessAuthGuard extends AuthGuard('jwt-access') {
+  canActivate(context: ExecutionContext) {
+    const request: Request = context.switchToHttp().getRequest();
+
+    if (request.url.startsWith('/api-docs')) {
+      return true;
+    }
+    return super.canActivate(context);
+  }
+}

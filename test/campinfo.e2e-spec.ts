@@ -8,10 +8,15 @@ import { ResponseGetCampWrapper } from 'src/campinfo/dto/response/response-get-c
 import { ResponseGetCampLatestList } from 'src/campinfo/dto/response/response-get-camp-latest-list.dto';
 import { ResponseGetCampDetail } from 'src/campinfo/dto/response/response-get-camp-detail.dto';
 import { ResponseGetCampByKeywordList } from 'src/campinfo/dto/response/response-get-camp-by-keyword-list.dto';
+import { Repository } from 'typeorm';
+import { Review } from 'src/campinfo/entities/review.entity';
+import { Member } from 'src/auth/entities/member.entity';
+import { ResponseGetReviewListWrapper } from 'src/campinfo/dto/response/response-get-review-list-wrapper.dto';
 
 describe('AppController (e2e)', () => {
   let app: INestApplication<App>;
-
+  let reviewRepository: Repository<Review>;
+  let memberRepository: Repository<Member>;
   beforeEach(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
@@ -30,6 +35,8 @@ describe('AppController (e2e)', () => {
     );
 
     await app.init();
+    reviewRepository = moduleFixture.get('ReviewRepository');
+    memberRepository = moduleFixture.get('MemberRepository');
   });
 
   it('/api/camps/list (GET) 200', () => {
@@ -117,6 +124,50 @@ describe('AppController (e2e)', () => {
       .get('/api/camps/keyword')
       .query(testValue)
       .expect(404);
+  });
+
+  it('/api/camps/reviews/{mapX}/{mapY} (GET) 200', async () => {
+    const mapX = '129.634822811708';
+    const mapY = '36.8780509365952';
+    const member = memberRepository.create({
+      email: 'test@example.com',
+      password: 'password123',
+      name: '홍길동',
+      nickname: 'tester',
+      birthday: new Date('1990-01-01'),
+      phoneNumber: '010-1234-5678',
+    });
+    await memberRepository.save(member);
+
+    await reviewRepository.save({
+      mapX,
+      mapY,
+      reviewContent: '테스트 리뷰',
+      reviewScore: 4.0,
+      member,
+    });
+
+    const res = await request(app.getHttpServer())
+      .get(`/api/camps/reviews/${mapX}/${mapY}`)
+      .query({ pageNo: 0, size: 4 })
+      .expect(200);
+    const result = res.body as ResponseGetReviewListWrapper;
+
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].reviewContent).toBe('테스트 리뷰');
+  });
+
+  it('/api/camps/reviews/{mapX}/{mapY} (GET) 200 리뷰 없음', async () => {
+    const mapX = '0';
+    const mapY = '0';
+
+    const res = await request(app.getHttpServer())
+      .get(`/api/camps/reviews/${mapX}/${mapY}`)
+      .query({ pageNo: 0, size: 4 })
+      .expect(200);
+    const result = res.body as ResponseGetReviewListWrapper;
+    expect(result.items).toHaveLength(0);
+    expect(result.totalElement).toBe(0);
   });
 
   it('/api/camps/reviews/board/rank (GET) 200 - 성공', async () => {

@@ -14,6 +14,8 @@ import { CampListResponse } from './dto/swagger/camp-list.response';
 import { ResponseGetCampDetail } from './dto/response/response-get-camp-detail.dto';
 import { CampInfoExceptionFilter } from './filters/campinfo-exception.filter';
 import { ResponseGetCampByKeywordList } from './dto/response/response-get-camp-by-keyword-list.dto';
+import { ResponseGetReviewListWrapper } from './dto/response/response-get-review-list-wrapper.dto';
+import { ResponseGetBoardReviewRankList } from './dto/response/response-get-board-review-rank-list.dto';
 
 @ApiTags('camp-info-rest-controller')
 @Controller('/api/camps')
@@ -67,7 +69,20 @@ export class CampinfoController {
 
   @Get('/reviews/board/rank')
   @HttpCode(200)
-  async getBoardReviewRank(@Query('limit') limit: number = 3) {
-    return await this.campinfoService.getBoardReviewRank(limit);
+  getBoardReviewRank(
+    @Query('limit') limit: number = 3,
+  ): Promise<ResponseGetBoardReviewRankList[]> {
+    return this.campinfoService.getBoardReviewRank(limit);
+  }
+
+  @Get('/reviews/:mapX/:mapY')
+  @HttpCode(200)
+  getReviewList(
+    @Param('mapX') mapX: string,
+    @Param('mapY') mapY: string,
+    @Query('pageNo') pageNo: number = 0,
+    @Query('size') size: number = 4,
+  ): Promise<ResponseGetReviewListWrapper> {
+    return this.campinfoService.getReviewList(mapX, mapY, pageNo, size);
   }
 }

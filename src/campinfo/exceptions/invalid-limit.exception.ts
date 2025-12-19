@@ -1,7 +1,7 @@
-import { HttpException, HttpStatus } from '@nestjs/common';
+import { BadRequestException } from '@nestjs/common';
 
-export class InvalidLimitException extends HttpException {
+export class InvalidLimitException extends BadRequestException {
   constructor(message: string) {
-    super(message, HttpStatus.BAD_REQUEST);
+    super(message);
   }
 }

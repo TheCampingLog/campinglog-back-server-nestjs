@@ -6,9 +6,12 @@ import { Member } from '../auth/entities/member.entity';
 import { Board } from './entities/board.entity';
 import { BoardLike } from './entities/board-like.entity';
 import { Comment } from './entities/comment.entity';
+import { Review } from 'src/campinfo/entities/review.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Member, Board, BoardLike, Comment])],
+  imports: [
+    TypeOrmModule.forFeature([Member, Board, BoardLike, Comment, Review]),
+  ],
   controllers: [BoardController],
   providers: [BoardService],
 })

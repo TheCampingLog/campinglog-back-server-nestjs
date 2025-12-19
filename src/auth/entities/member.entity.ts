@@ -10,6 +10,7 @@ import { Board } from 'src/board/entities/board.entity';
 import { BoardLike } from 'src/board/entities/board-like.entity';
 import { Comment } from 'src/board/entities/comment.entity';
 import { RefreshToken } from './refresh-token.entity';
+import { Review } from 'src/campinfo/entities/review.entity';
 
 export enum Role {
   USER = 'USER',
@@ -75,6 +76,12 @@ export class Member {
     orphanedRowAction: 'delete',
   })
   board_like?: BoardLike[];
+
+  @OneToMany(() => Review, (reviews) => reviews.member, {
+    cascade: true,
+    orphanedRowAction: 'delete',
+  })
+  reviews?: Review[];
 
   @OneToMany(() => RefreshToken, (refreshToken) => refreshToken.member, {
     cascade: true,
