@@ -11,6 +11,7 @@ import { NoExistCampException } from '../exceptions/no-exist-camp.exception';
 import { MissingCampApiKeyException } from '../exceptions/missing-camp-api-key.exception';
 import { NoSearchResultException } from '../exceptions/no-search-result.exception';
 import { InvalidLimitException } from '../exceptions/invalid-limit.exception';
+import { CallCampApiException } from '../exceptions/call-camp-api.exception';
 @Catch()
 export class CampInfoExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(CampInfoExceptionFilter.name);
@@ -41,6 +42,13 @@ export class CampInfoExceptionFilter implements ExceptionFilter {
       errorCode = 'CAMPINFO_NOT_FOUND';
       message = exception.message;
       this.logger.error(`CampInfo NotFound: ${message}`);
+    }
+    // 503 - Service Unavailable (외부 캠핑 API 장애)
+    else if (exception instanceof CallCampApiException) {
+      status = HttpStatus.SERVICE_UNAVAILABLE;
+      errorCode = 'CAMPINFO_SERVICE_UNAVAILABLE';
+      message = exception.message;
+      this.logger.error(`CampInfo ServiceUnavailable: ${message}`);
     }
     // 500 - Internal Server Error (RuntimeException)
     else if (exception instanceof MissingCampApiKeyException) {

@@ -12,11 +12,14 @@ import { Repository } from 'typeorm';
 import { Review } from 'src/campinfo/entities/review.entity';
 import { Member } from 'src/auth/entities/member.entity';
 import { ResponseGetReviewListWrapper } from 'src/campinfo/dto/response/response-get-review-list-wrapper.dto';
+import { ReviewOfBoard } from 'src/campinfo/entities/review-of-board.entity';
+import { ResponseGetBoardReview } from 'src/campinfo/dto/response/response-get-board-review.dto';
 
 describe('AppController (e2e)', () => {
   let app: INestApplication<App>;
   let reviewRepository: Repository<Review>;
   let memberRepository: Repository<Member>;
+  let reviewOfBoardRepository: Repository<ReviewOfBoard>;
   beforeEach(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
@@ -37,6 +40,7 @@ describe('AppController (e2e)', () => {
     await app.init();
     reviewRepository = moduleFixture.get('ReviewRepository');
     memberRepository = moduleFixture.get('MemberRepository');
+    reviewOfBoardRepository = moduleFixture.get('ReviewOfBoardRepository');
   });
 
   it('/api/camps/list (GET) 200', () => {
@@ -220,6 +224,57 @@ describe('AppController (e2e)', () => {
         expect(body.message).toContain(
           '리뷰 랭킹 조회 시 limit은 0보다 커야 합니다.',
         );
+      });
+  });
+
+  it('/api/camps/reviews/board/:mapX/:mapY (GET) 200', async () => {
+    const mapX = '129.634822811708';
+    const mapY = '36.8780509365952';
+
+    const member = memberRepository.create({
+      email: 'test@example.com',
+      password: 'password123',
+      name: '홍길동',
+      nickname: 'tester',
+      birthday: new Date('1990-01-01'),
+      phoneNumber: '010-1234-5678',
+    });
+    await memberRepository.save(member);
+
+    await reviewRepository.save({
+      mapX,
+      mapY,
+      reviewContent: '테스트 리뷰',
+      reviewScore: 4.0,
+      member: member,
+    });
+
+    await reviewOfBoardRepository.save({
+      mapX,
+      mapY,
+      reviewCount: 1,
+      reviewAverage: 4.0,
+    });
+
+    await request(app.getHttpServer())
+      .get(`/api/camps/reviews/board/${mapX}/${mapY}`)
+      .expect(200)
+      .expect((res) => {
+        const result = res.body as ResponseGetBoardReview;
+        expect(result.reviewCount).toBe(1);
+      });
+  });
+
+  it('/api/camps/reviews/board/:mapX/:mapY (GET) 200 - 리뷰없음', async () => {
+    const mapX = '129.634822811708';
+    const mapY = '36.8780509365952';
+
+    await request(app.getHttpServer())
+      .get(`/api/camps/reviews/board/${mapX}/${mapY}`)
+      .expect(200)
+      .expect((res) => {
+        const result = res.body as ResponseGetBoardReview;
+        expect(result.reviewCount).toBe(0);
       });
   });
 });

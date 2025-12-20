@@ -19,6 +19,10 @@ import { ResponseGetReviewList } from './dto/response/response-get-review-list.d
 import { ResponseGetBoardReviewRankList } from './dto/response/response-get-board-review-rank-list.dto';
 import { InvalidLimitException } from './exceptions/invalid-limit.exception';
 import { ReviewOfBoard } from './entities/review-of-board.entity';
+import { ResponseGetBoardReview } from './dto/response/response-get-board-review.dto';
+import { ResponseGetMyReviewWrapper } from './dto/response/response-get-my-review-rapper.dto';
+import { ResponseGetMyReviewList } from './dto/response/response-get-my-review-list.dto';
+import { CallCampApiException } from './exceptions/call-camp-api.exception';
 interface CampingApiResponse {
   response: {
     header: {
@@ -238,6 +242,83 @@ export class CampinfoService {
     }
 
     return results;
+  }
+
+  async getBoardReview(
+    mapX: string,
+    mapY: string,
+  ): Promise<ResponseGetBoardReview> {
+    const reviewOfBoard = await this.reviewOfBoardRepository.findOne({
+      where: { mapX, mapY },
+    });
+
+    if (!reviewOfBoard) {
+      return {
+        reviewAverage: 0.0,
+        reviewCount: 0,
+      };
+    }
+
+    return {
+      reviewAverage: reviewOfBoard.reviewAverage,
+      reviewCount: reviewOfBoard.reviewCount,
+    };
+  }
+
+  async getMyReviews(
+    email: string,
+    pageNo: number,
+    size: number,
+  ): Promise<ResponseGetMyReviewWrapper> {
+    const page = pageNo - 1;
+    const skip = page * size;
+    const take = size;
+
+    // 1. 리뷰 목록 조회 (페이징)
+    const [reviews, total] = await this.reviewRepository.findAndCount({
+      where: {
+        member: {
+          email,
+        },
+      },
+      order: {
+        createAt: 'DESC',
+      },
+      skip,
+      take,
+    });
+
+    // 2. 캠핑장 상세 비동기 조회 (병렬)
+    const reviewList: ResponseGetMyReviewList[] = await Promise.all(
+      reviews.map(async (review) => {
+        try {
+          const detail = await this.getCampDetail(review.mapX, review.mapY);
+
+          return {
+            id: review.id,
+            reviewScore: review.reviewScore,
+            reviewContent: review.reviewContent,
+            mapX: review.mapX,
+            mapY: review.mapY,
+            createAt: review.createAt,
+            facltNm: detail?.facltNm ?? null,
+            firstImageUrl: detail?.firstImageUrl ?? null,
+          };
+        } catch {
+          throw new CallCampApiException(review.mapX, review.mapY);
+        }
+      }),
+    );
+
+    // 3. 응답 래퍼 구성
+    return {
+      content: reviewList,
+      page,
+      size,
+      totalElements: total,
+      totalPage: Math.ceil(total / size),
+      hasNext: skip + take < total,
+    };
   }
 
   parseItems<T>(json: CampingApiResponse, type: new () => T): T[] {

@@ -16,6 +16,7 @@ import { CampInfoExceptionFilter } from './filters/campinfo-exception.filter';
 import { ResponseGetCampByKeywordList } from './dto/response/response-get-camp-by-keyword-list.dto';
 import { ResponseGetReviewListWrapper } from './dto/response/response-get-review-list-wrapper.dto';
 import { ResponseGetBoardReviewRankList } from './dto/response/response-get-board-review-rank-list.dto';
+import { ResponseGetBoardReview } from './dto/response/response-get-board-review.dto';
 
 @ApiTags('camp-info-rest-controller')
 @Controller('/api/camps')
@@ -48,15 +49,6 @@ export class CampinfoController {
     return this.campinfoService.getCampListLatest(pageNo, size);
   }
 
-  @Get('/detail/:mapX/:mapY')
-  @HttpCode(200)
-  getCampDetail(
-    @Param('mapX') mapX: string,
-    @Param('mapY') mapY: string,
-  ): Promise<ResponseGetCampDetail> {
-    return this.campinfoService.getCampDetail(mapX, mapY);
-  }
-
   @Get('/keyword')
   @HttpCode(200)
   getCampByKeyword(
@@ -84,5 +76,23 @@ export class CampinfoController {
     @Query('size') size: number = 4,
   ): Promise<ResponseGetReviewListWrapper> {
     return this.campinfoService.getReviewList(mapX, mapY, pageNo, size);
+  }
+
+  @Get('/reviews/board/:mapX/:mapY')
+  @HttpCode(200)
+  getBoardReview(
+    @Param('mapX') mapX: string,
+    @Param('mapY') mapY: string,
+  ): Promise<ResponseGetBoardReview> {
+    return this.campinfoService.getBoardReview(mapX, mapY);
+  }
+
+  @Get('/detail/:mapX/:mapY')
+  @HttpCode(200)
+  getCampDetail(
+    @Param('mapX') mapX: string,
+    @Param('mapY') mapY: string,
+  ): Promise<ResponseGetCampDetail> {
+    return this.campinfoService.getCampDetail(mapX, mapY);
   }
 }
