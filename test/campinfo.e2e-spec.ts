@@ -12,11 +12,14 @@ import { Repository } from 'typeorm';
 import { Review } from 'src/campinfo/entities/review.entity';
 import { Member } from 'src/auth/entities/member.entity';
 import { ResponseGetReviewListWrapper } from 'src/campinfo/dto/response/response-get-review-list-wrapper.dto';
+import { RequestAddMemberDto } from 'src/auth/dto/request/request-add-member.dto';
+import { ReviewOfBoard } from 'src/campinfo/entities/review-of-board.entity';
 
 describe('AppController (e2e)', () => {
   let app: INestApplication<App>;
   let reviewRepository: Repository<Review>;
   let memberRepository: Repository<Member>;
+  let reviewOfBoardRepository: Repository<ReviewOfBoard>;
   beforeEach(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
@@ -37,6 +40,7 @@ describe('AppController (e2e)', () => {
     await app.init();
     reviewRepository = moduleFixture.get('ReviewRepository');
     memberRepository = moduleFixture.get('MemberRepository');
+    reviewOfBoardRepository = moduleFixture.get('ReviewOfBoardRepository');
   });
 
   it('/api/camps/list (GET) 200', () => {
@@ -221,5 +225,64 @@ describe('AppController (e2e)', () => {
           '리뷰 랭킹 조회 시 limit은 0보다 커야 합니다.',
         );
       });
+  });
+
+  it('/api/camps/members/reviews (PUT) 204', async () => {
+    const mapX = '129.634822811708';
+    const mapY = '36.8780509365952';
+
+    const testUser: RequestAddMemberDto = {
+      email: 'test@example.com',
+      password: 'test1234',
+      name: 'tester',
+      nickname: 'nick',
+      birthday: '2000-06-21',
+      phoneNumber: '010-1234-5678',
+    };
+
+    await request(app.getHttpServer())
+      .post('/api/members')
+      .send(testUser)
+      .expect(201);
+
+    const validMember = {
+      email: testUser.email,
+      password: testUser.password,
+    };
+
+    const loginResponse = await request(app.getHttpServer())
+      .post('/login')
+      .send(validMember)
+      .expect(200);
+
+    const accessToken = loginResponse.headers['authorization'];
+
+    const review1 = await reviewRepository.save({
+      mapX,
+      mapY,
+      reviewContent: '리뷰1',
+      reviewScore: 2.0,
+      member: { email: validMember.email } as Member,
+    });
+
+    await reviewOfBoardRepository.save({
+      mapX,
+      mapY,
+      reviewCount: 1,
+      reviewAverage: 2.0,
+    });
+
+    await request(app.getHttpServer())
+      .put('/api/camps/members/reviews')
+      .set('authorization', accessToken)
+      .send({
+        mapX,
+        mapY,
+        id: review1.id,
+        newReviewContent: '수정된 리뷰',
+        newReviewScore: 4.0,
+        newReviewImage: null,
+      })
+      .expect(204);
   });
 });

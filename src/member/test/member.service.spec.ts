@@ -12,6 +12,8 @@ import { MemberNotFoundException } from '../exceptions/member-not-found.exceptio
 import { RequestUpdateMemberDto } from '../dto/request/request-update-member.dto';
 import { DuplicateNicknameException } from '../exceptions/duplicate-nickname.exception';
 import { DuplicatePhoneNumberException } from '../exceptions/duplicate-phone-number.exception';
+import { Review } from 'src/campinfo/entities/review.entity';
+import { ReviewOfBoard } from 'src/campinfo/entities/review-of-board.entity';
 
 describe('MemberService 단위테스트', () => {
   let module: TestingModule;
@@ -24,7 +26,14 @@ describe('MemberService 단위테스트', () => {
     module = await Test.createTestingModule({
       imports: [
         TestTypeOrmModule(),
-        TypeOrmModule.forFeature([Member, Board, BoardLike, Comment]),
+        TypeOrmModule.forFeature([
+          Member,
+          Board,
+          BoardLike,
+          Comment,
+          Review,
+          ReviewOfBoard,
+        ]),
       ],
       providers: [MemberService],
     }).compile();

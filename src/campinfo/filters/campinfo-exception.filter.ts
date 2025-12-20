@@ -11,6 +11,7 @@ import { NoExistCampException } from '../exceptions/no-exist-camp.exception';
 import { MissingCampApiKeyException } from '../exceptions/missing-camp-api-key.exception';
 import { NoSearchResultException } from '../exceptions/no-search-result.exception';
 import { InvalidLimitException } from '../exceptions/invalid-limit.exception';
+import { NullReviewException } from '../exceptions/null-review.exception';
 @Catch()
 export class CampInfoExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(CampInfoExceptionFilter.name);
@@ -33,6 +34,7 @@ export class CampInfoExceptionFilter implements ExceptionFilter {
     }
     // 404 - Not Found
     else if (
+      exception instanceof NullReviewException ||
       exception instanceof NoExistCampException ||
       exception instanceof NoSearchResultException ||
       exception instanceof NotFoundException
