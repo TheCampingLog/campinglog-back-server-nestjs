@@ -18,6 +18,9 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { ResponseGetReviewList } from './dto/response/response-get-review-list.dto';
 import { ResponseGetBoardReviewRankList } from './dto/response/response-get-board-review-rank-list.dto';
 import { InvalidLimitException } from './exceptions/invalid-limit.exception';
+import { RequestAddReviewDto } from './dto/request/request-add-review.dto';
+import { Member } from 'src/auth/entities/member.entity';
+import { MemberNotFoundException } from 'src/member/exceptions/member-not-found.exception';
 import { ReviewOfBoard } from './entities/review-of-board.entity';
 interface CampingApiResponse {
   response: {
@@ -46,6 +49,8 @@ export class CampinfoService {
     private readonly reviewRepository: Repository<Review>,
     @InjectRepository(ReviewOfBoard)
     private readonly reviewOfBoardRepository: Repository<ReviewOfBoard>,
+    @InjectRepository(Member)
+    private readonly memberRepository: Repository<Member>,
   ) {
     this.serviceKey = this.config.get<string>('CAMP_KEY') ?? '';
     if (!this.serviceKey) throw new MissingCampApiKeyException();
@@ -238,6 +243,49 @@ export class CampinfoService {
     }
 
     return results;
+  }
+
+  async addReview(dto: RequestAddReviewDto): Promise<void> {
+    const member = await this.memberRepository.findOne({
+      where: { email: dto.email },
+    });
+
+    if (!member) {
+      throw new MemberNotFoundException(`회원 없음: email= ${dto.email}`);
+    }
+
+    const review = this.reviewRepository.create({
+      mapX: dto.mapX,
+      mapY: dto.mapY,
+      reviewContent: dto.reviewContent,
+      reviewScore: dto.reviewScore,
+      reviewImage: dto.reviewImage,
+      member,
+    });
+
+    await this.reviewRepository.save(review);
+
+    // ReviewOfBoard 업데이트 또는 생성
+    const existingReviewOfBoard = await this.reviewOfBoardRepository.findOne({
+      where: { mapX: dto.mapX, mapY: dto.mapY },
+    });
+
+    if (existingReviewOfBoard) {
+      const reviewCount = existingReviewOfBoard.reviewCount;
+      existingReviewOfBoard.reviewCount = reviewCount + 1;
+      existingReviewOfBoard.reviewAverage =
+        (existingReviewOfBoard.reviewAverage * reviewCount + dto.reviewScore) /
+        existingReviewOfBoard.reviewCount;
+      await this.reviewOfBoardRepository.save(existingReviewOfBoard);
+    } else {
+      const newReviewOfBoard = this.reviewOfBoardRepository.create({
+        reviewCount: 1,
+        reviewAverage: dto.reviewScore,
+        mapX: dto.mapX,
+        mapY: dto.mapY,
+      });
+      await this.reviewOfBoardRepository.save(newReviewOfBoard);
+    }
   }
 
   parseItems<T>(json: CampingApiResponse, type: new () => T): T[] {

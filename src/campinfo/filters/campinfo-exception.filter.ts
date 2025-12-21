@@ -3,6 +3,7 @@ import {
   Catch,
   ExceptionFilter,
   HttpStatus,
+  HttpException,
   Logger,
   NotFoundException,
 } from '@nestjs/common';
@@ -24,8 +25,20 @@ export class CampInfoExceptionFilter implements ExceptionFilter {
     let errorCode: string;
     let message: string;
 
+    // HttpException 처리 (인증, validation 등)
+    if (exception instanceof HttpException) {
+      status = exception.getStatus();
+      const exceptionResponse = exception.getResponse();
+      errorCode =
+        typeof exceptionResponse === 'object' && 'error' in exceptionResponse
+          ? String(exceptionResponse.error)
+          : exception.name;
+      message = exception.message;
+      this.logger.error(`CampInfo HttpException: ${message}`);
+    }
+
     // 400 - Bad Request
-    if (exception instanceof InvalidLimitException) {
+    else if (exception instanceof InvalidLimitException) {
       status = HttpStatus.BAD_REQUEST;
       errorCode = 'INVALID_LIMIT';
       message = exception.message;
