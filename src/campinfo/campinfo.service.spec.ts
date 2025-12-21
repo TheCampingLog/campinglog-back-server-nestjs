@@ -230,4 +230,119 @@ describe('CampinfoService', () => {
     expect(result).toBeDefined();
     expect(result.length).toBe(0);
   });
+
+  it('리뷰 추가 테스트 - 첫 번째 리뷰 (ReviewOfBoard 생성)', async () => {
+    //given
+    const member = memberRepository.create({
+      email: 'test@example.com',
+      password: 'password123',
+      name: '홍길동',
+      nickname: 'tester',
+      birthday: new Date('1990-01-01'),
+      phoneNumber: '010-1234-5678',
+    });
+    await memberRepository.save(member);
+
+    const dto = {
+      mapX: '127.2636514',
+      mapY: '37.0323408',
+      reviewContent: '정말 좋은 캠핑장입니다!',
+      reviewScore: 5,
+      reviewImage: 'image.jpg',
+      email: member.email,
+    };
+
+    //when
+    await service.addReview(dto);
+
+    //then
+    const savedReview = await reviewRepository.findOne({
+      where: { mapX: dto.mapX, mapY: dto.mapY },
+      relations: ['member'],
+    });
+    expect(savedReview).toBeDefined();
+    expect(savedReview!.reviewContent).toBe(dto.reviewContent);
+    expect(savedReview!.reviewScore).toBe(dto.reviewScore);
+    expect(savedReview!.member.email).toBe(member.email);
+
+    const reviewOfBoard = await reviewOfBoardRepository.findOne({
+      where: { mapX: dto.mapX, mapY: dto.mapY },
+    });
+    expect(reviewOfBoard).toBeDefined();
+    expect(reviewOfBoard!.reviewCount).toBe(1);
+    expect(reviewOfBoard!.reviewAverage).toBe(5);
+  });
+
+  it('리뷰 추가 테스트 - 두 번째 리뷰 (ReviewOfBoard 업데이트)', async () => {
+    //given
+    const member = memberRepository.create({
+      email: 'test@example.com',
+      password: 'password123',
+      name: '홍길동',
+      nickname: 'tester',
+      birthday: new Date('1990-01-01'),
+      phoneNumber: '010-1234-5678',
+    });
+    await memberRepository.save(member);
+
+    const member2 = memberRepository.create({
+      email: 'test2@example.com',
+      password: 'password123',
+      name: '김철수',
+      nickname: 'tester2',
+      birthday: new Date('1990-01-01'),
+      phoneNumber: '010-1234-5679',
+    });
+    await memberRepository.save(member2);
+
+    // 첫 번째 리뷰 추가
+    await service.addReview({
+      mapX: '127.2636514',
+      mapY: '37.0323408',
+      reviewContent: '첫 번째 리뷰',
+      reviewScore: 3,
+      email: member.email,
+    });
+
+    // 두 번째 리뷰 추가
+    const dto = {
+      mapX: '127.2636514',
+      mapY: '37.0323408',
+      reviewContent: '두 번째 리뷰',
+      reviewScore: 5,
+      email: member2.email,
+    };
+
+    //when
+    await service.addReview(dto);
+
+    //then
+    const reviewCount = await reviewRepository.count({
+      where: { mapX: dto.mapX, mapY: dto.mapY },
+    });
+    expect(reviewCount).toBe(2);
+
+    const reviewOfBoard = await reviewOfBoardRepository.findOne({
+      where: { mapX: dto.mapX, mapY: dto.mapY },
+    });
+    expect(reviewOfBoard).toBeDefined();
+    expect(reviewOfBoard!.reviewCount).toBe(2);
+    expect(reviewOfBoard!.reviewAverage).toBe(4);
+  });
+
+  it('리뷰 추가 테스트 - 회원 없음 에러', async () => {
+    //given
+    const dto = {
+      mapX: '127.2636514',
+      mapY: '37.0323408',
+      reviewContent: '테스트 리뷰',
+      reviewScore: 4,
+      email: 'nonexistent@example.com',
+    };
+
+    //when & then
+    await expect(service.addReview(dto)).rejects.toThrow(
+      '회원 없음: email= nonexistent@example.com',
+    );
+  });
 });

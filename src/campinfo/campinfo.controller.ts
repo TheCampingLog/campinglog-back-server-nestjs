@@ -5,6 +5,9 @@ import {
   Param,
   Query,
   UseFilters,
+  Post,
+  Body,
+  UseGuards,
 } from '@nestjs/common';
 import { CampinfoService } from './campinfo.service';
 import { ResponseGetCampWrapper } from './dto/response/response-get-camp-wrapper.dto';
@@ -16,6 +19,10 @@ import { CampInfoExceptionFilter } from './filters/campinfo-exception.filter';
 import { ResponseGetCampByKeywordList } from './dto/response/response-get-camp-by-keyword-list.dto';
 import { ResponseGetReviewListWrapper } from './dto/response/response-get-review-list-wrapper.dto';
 import { ResponseGetBoardReviewRankList } from './dto/response/response-get-board-review-rank-list.dto';
+import { RequestAddReviewDto } from './dto/request/request-add-review.dto';
+import { AccessAuthGuard } from 'src/auth/passport/access-auth.guard';
+import { AccessMember } from 'src/auth/decorators/jwt-member.decorator';
+import { type JwtData } from 'src/auth/interfaces/jwt.interface';
 
 @ApiTags('camp-info-rest-controller')
 @Controller('/api/camps')
@@ -84,5 +91,17 @@ export class CampinfoController {
     @Query('size') size: number = 4,
   ): Promise<ResponseGetReviewListWrapper> {
     return this.campinfoService.getReviewList(mapX, mapY, pageNo, size);
+  }
+
+  @UseGuards(AccessAuthGuard)
+  @Post('/members/reviews')
+  @HttpCode(201)
+  async addReview(
+    @Body() dto: RequestAddReviewDto,
+    @AccessMember() accessMember: JwtData,
+  ) {
+    dto.email = accessMember.email;
+    await this.campinfoService.addReview(dto);
+    return { message: '리뷰가 등록되었습니다.' };
   }
 }
