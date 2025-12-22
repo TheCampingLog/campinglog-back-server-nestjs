@@ -15,6 +15,7 @@ import { BoardLike } from 'src/board/entities/board-like.entity';
 import { Comment } from 'src/board/entities/comment.entity';
 import { ReviewOfBoard } from './entities/review-of-board.entity';
 import { InvalidLimitException } from './exceptions/invalid-limit.exception';
+import { NullReviewException } from './exceptions/null-review.exception';
 
 describe('CampinfoService', () => {
   let service: CampinfoService;
@@ -453,6 +454,17 @@ describe('CampinfoService', () => {
     //when & then
     await expect(service.removeReview(dto)).rejects.toThrow(
       '삭제할 리뷰 없음: id = 99999',
+    );
+  });
+
+  it('리뷰가 존재하지 않으면 NullReviewError를 던져야 한다', async () => {
+    // given
+    const notExistId = 99999;
+    const dto = { id: notExistId };
+
+    // when & then
+    await expect(service.removeReview(dto)).rejects.toThrow(
+      NullReviewException,
     );
   });
 

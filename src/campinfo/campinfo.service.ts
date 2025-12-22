@@ -27,6 +27,7 @@ import { CallCampApiException } from './exceptions/call-camp-api.exception';
 import { ResponseGetMyReviewList } from './dto/response/response-get-my-review-list.dto';
 import { ResponseGetMyReviewWrapper } from './dto/response/response-get-my-review-rapper.dto';
 import { ResponseGetBoardReview } from './dto/response/response-get-board-review.dto';
+import { NullReviewException } from './exceptions/null-review.exception';
 interface CampingApiResponse {
   response: {
     header: {
@@ -299,7 +300,7 @@ export class CampinfoService {
     });
 
     if (!deleteReview) {
-      throw new MemberNotFoundException(`삭제할 리뷰 없음: id = ${dto.id}`);
+      throw new NullReviewException(`삭제할 리뷰 없음: id = ${dto.id}`);
     }
 
     await this.reviewRepository.delete(dto.id);
