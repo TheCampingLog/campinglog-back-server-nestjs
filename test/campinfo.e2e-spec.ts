@@ -15,6 +15,7 @@ import { Member } from 'src/auth/entities/member.entity';
 import { ResponseGetReviewListWrapper } from 'src/campinfo/dto/response/response-get-review-list-wrapper.dto';
 import { ReviewOfBoard } from 'src/campinfo/entities/review-of-board.entity';
 import { RequestAddMemberDto } from 'src/auth/dto/request/request-add-member.dto';
+import { ResponseGetBoardReview } from 'src/campinfo/dto/response/response-get-board-review.dto';
 
 describe('AppController (e2e)', () => {
   let app: INestApplication<App>;
@@ -388,5 +389,56 @@ describe('AppController (e2e)', () => {
       .set('Authorization', accessToken)
       .send(reviewDto)
       .expect(400);
+  });
+
+  it('/api/camps/reviews/board/:mapX/:mapY (GET) 200', async () => {
+    const mapX = '129.634822811708';
+    const mapY = '36.8780509365952';
+
+    const member = memberRepository.create({
+      email: 'test@example.com',
+      password: 'password123',
+      name: '홍길동',
+      nickname: 'tester',
+      birthday: new Date('1990-01-01'),
+      phoneNumber: '010-1234-5678',
+    });
+    await memberRepository.save(member);
+
+    await reviewRepository.save({
+      mapX,
+      mapY,
+      reviewContent: '테스트 리뷰',
+      reviewScore: 4.0,
+      member: member,
+    });
+
+    await reviewOfBoardRepository.save({
+      mapX,
+      mapY,
+      reviewCount: 1,
+      reviewAverage: 4.0,
+    });
+
+    await request(app.getHttpServer())
+      .get(`/api/camps/reviews/board/${mapX}/${mapY}`)
+      .expect(200)
+      .expect((res) => {
+        const result = res.body as ResponseGetBoardReview;
+        expect(result.reviewCount).toBe(1);
+      });
+  });
+
+  it('/api/camps/reviews/board/:mapX/:mapY (GET) 200 - 리뷰없음', async () => {
+    const mapX = '129.634822811708';
+    const mapY = '36.8780509365952';
+
+    await request(app.getHttpServer())
+      .get(`/api/camps/reviews/board/${mapX}/${mapY}`)
+      .expect(200)
+      .expect((res) => {
+        const result = res.body as ResponseGetBoardReview;
+        expect(result.reviewCount).toBe(0);
+      });
   });
 });

@@ -23,6 +23,7 @@ import { RequestAddReviewDto } from './dto/request/request-add-review.dto';
 import { AccessAuthGuard } from 'src/auth/passport/access-auth.guard';
 import { AccessMember } from 'src/auth/decorators/jwt-member.decorator';
 import { type JwtData } from 'src/auth/interfaces/jwt.interface';
+import { ResponseGetBoardReview } from './dto/response/response-get-board-review.dto';
 
 @ApiTags('camp-info-rest-controller')
 @Controller('/api/camps')
@@ -53,15 +54,6 @@ export class CampinfoController {
     @Query('size') size: number = 4,
   ): Promise<ResponseGetCampWrapper<ResponseGetCampLatestList>> {
     return this.campinfoService.getCampListLatest(pageNo, size);
-  }
-
-  @Get('/detail/:mapX/:mapY')
-  @HttpCode(200)
-  getCampDetail(
-    @Param('mapX') mapX: string,
-    @Param('mapY') mapY: string,
-  ): Promise<ResponseGetCampDetail> {
-    return this.campinfoService.getCampDetail(mapX, mapY);
   }
 
   @Get('/keyword')
@@ -103,5 +95,23 @@ export class CampinfoController {
     dto.email = accessMember.email;
     await this.campinfoService.addReview(dto);
     return { message: '리뷰가 등록되었습니다.' };
+  }
+
+  @Get('/reviews/board/:mapX/:mapY')
+  @HttpCode(200)
+  getBoardReview(
+    @Param('mapX') mapX: string,
+    @Param('mapY') mapY: string,
+  ): Promise<ResponseGetBoardReview> {
+    return this.campinfoService.getBoardReview(mapX, mapY);
+  }
+
+  @Get('/detail/:mapX/:mapY')
+  @HttpCode(200)
+  getCampDetail(
+    @Param('mapX') mapX: string,
+    @Param('mapY') mapY: string,
+  ): Promise<ResponseGetCampDetail> {
+    return this.campinfoService.getCampDetail(mapX, mapY);
   }
 }

@@ -345,4 +345,107 @@ describe('CampinfoService', () => {
       '회원 없음: email= nonexistent@example.com',
     );
   });
+
+  it('게시판 리뷰 정보 조회', async () => {
+    //given
+    const mapX = '127.634822811708';
+    const mapY = '36.8780509365952';
+
+    const member = memberRepository.create({
+      email: 'test@example.com',
+      password: 'password123',
+      name: '홍길동',
+      nickname: 'tester',
+      birthday: new Date('1990-01-01'),
+      phoneNumber: '010-1234-5678',
+    });
+    await memberRepository.save(member);
+
+    await reviewRepository.save({
+      mapX: '127.634822811708',
+      mapY: '36.8780509365952',
+      reviewContent: '테스트 리뷰',
+      reviewScore: 4.0,
+      member: member,
+    });
+
+    let reviewOfBoard = await reviewOfBoardRepository.findOne({
+      where: { mapX, mapY },
+    });
+
+    if (!reviewOfBoard) {
+      reviewOfBoard = reviewOfBoardRepository.create({
+        mapX,
+        mapY,
+        reviewCount: 1,
+        reviewAverage: 4.0,
+      });
+    }
+    await reviewOfBoardRepository.save(reviewOfBoard);
+    //when
+    const result = await service.getBoardReview(mapX, mapY);
+    //then
+    expect(result.reviewCount).toBe(1);
+  });
+
+  it('게시판 리뷰 정보 조회(리뷰 없음)', async () => {
+    //given
+    const mapX = '127.634822811708';
+    const mapY = '36.8780509365952';
+    //when
+    const result = await service.getBoardReview(mapX, mapY);
+    //then
+    expect(result.reviewCount).toBe(0);
+  });
+
+  it('내 리뷰 목록 불러오기', async () => {
+    //given
+    const mapX = '127.634822811708';
+    const mapY = '36.8780509365952';
+    const email = 'test@example.com';
+    const member = memberRepository.create({
+      email,
+      password: 'password123',
+      name: '홍길동',
+      nickname: 'tester',
+      birthday: new Date('1990-01-01'),
+      phoneNumber: '010-1234-5678',
+    });
+    await memberRepository.save(member);
+
+    await reviewRepository.save({
+      mapX,
+      mapY,
+      reviewContent: '리뷰1',
+      reviewScore: 2.0,
+      member,
+    });
+
+    await reviewRepository.save({
+      mapX,
+      mapY,
+      reviewContent: '리뷰2',
+      reviewScore: 3.0,
+      member,
+    });
+
+    await reviewRepository.save({
+      mapX: '127.2636514',
+      mapY: '37.0323408',
+      reviewContent: '리뷰3',
+      reviewScore: 4.0,
+      member,
+    });
+
+    await reviewOfBoardRepository.save({
+      mapX,
+      mapY,
+      reviewCount: 3,
+      reviewAverage: 6.0,
+    });
+
+    const result = await service.getMyReviews(email, 1, 4);
+
+    expect(result.content.length).toBe(3);
+  });
 });
