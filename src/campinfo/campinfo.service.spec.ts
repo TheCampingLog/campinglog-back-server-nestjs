@@ -570,4 +570,55 @@ describe('CampinfoService', () => {
 
     expect(result.content.length).toBe(3);
   });
+
+  it('게시판 리뷰 수정', async () => {
+    //given
+    const mapX = '127.634822811708';
+    const mapY = '36.8780509365952';
+    const email = 'test@example.com';
+    const member = memberRepository.create({
+      email,
+      password: 'password123',
+      name: '홍길동',
+      nickname: 'tester',
+      birthday: new Date('1990-01-01'),
+      phoneNumber: '010-1234-5678',
+    });
+    await memberRepository.save(member);
+
+    const review1 = await reviewRepository.save({
+      mapX,
+      mapY,
+      reviewContent: '리뷰1',
+      reviewScore: 2.0,
+      member,
+    });
+
+    await reviewOfBoardRepository.save({
+      mapX,
+      mapY,
+      reviewCount: 1,
+      reviewAverage: 2.0,
+    });
+
+    await service.setReview(member.email, {
+      mapX,
+      mapY,
+      id: review1.id,
+      newReviewContent: '수정된 리뷰',
+      newReviewScore: 4.0,
+      newReviewImage: undefined,
+    });
+
+    const updatedReview = (await reviewRepository.findOne({
+      where: { id: review1.id },
+    })) as Review;
+
+    const updatedBoard = (await reviewOfBoardRepository.findOne({
+      where: { mapX, mapY },
+    })) as ReviewOfBoard;
+
+    expect(updatedReview.reviewScore).toBe(4.0);
+    expect(updatedBoard.reviewAverage).toBe(4.0);
+  });
 });

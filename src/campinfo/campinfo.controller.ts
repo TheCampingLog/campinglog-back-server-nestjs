@@ -8,6 +8,7 @@ import {
   Post,
   Body,
   UseGuards,
+  Put,
   Delete,
 } from '@nestjs/common';
 import { CampinfoService } from './campinfo.service';
@@ -26,6 +27,7 @@ import { AccessAuthGuard } from 'src/auth/passport/access-auth.guard';
 import { AccessMember } from 'src/auth/decorators/jwt-member.decorator';
 import { type JwtData } from 'src/auth/interfaces/jwt.interface';
 import { ResponseGetBoardReview } from './dto/response/response-get-board-review.dto';
+import { RequestSetReview } from './dto/request/request-set-review.dto';
 
 @ApiTags('camp-info-rest-controller')
 @Controller('/api/camps')
@@ -121,5 +123,15 @@ export class CampinfoController {
     @Param('mapY') mapY: string,
   ): Promise<ResponseGetCampDetail> {
     return this.campinfoService.getCampDetail(mapX, mapY);
+  }
+
+  @UseGuards(AccessAuthGuard)
+  @Put('/members/reviews')
+  @HttpCode(204)
+  async setReview(
+    @AccessMember() accessMember: JwtData,
+    @Body() requestSetReview: RequestSetReview,
+  ): Promise<void> {
+    await this.campinfoService.setReview(accessMember.email, requestSetReview);
   }
 }
