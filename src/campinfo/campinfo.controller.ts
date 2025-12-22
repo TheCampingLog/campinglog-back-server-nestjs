@@ -8,6 +8,7 @@ import {
   Post,
   Body,
   UseGuards,
+  Delete,
 } from '@nestjs/common';
 import { CampinfoService } from './campinfo.service';
 import { ResponseGetCampWrapper } from './dto/response/response-get-camp-wrapper.dto';
@@ -20,6 +21,7 @@ import { ResponseGetCampByKeywordList } from './dto/response/response-get-camp-b
 import { ResponseGetReviewListWrapper } from './dto/response/response-get-review-list-wrapper.dto';
 import { ResponseGetBoardReviewRankList } from './dto/response/response-get-board-review-rank-list.dto';
 import { RequestAddReviewDto } from './dto/request/request-add-review.dto';
+import { RequestRemoveReviewDto } from './dto/request/request-remove-review.dto';
 import { AccessAuthGuard } from 'src/auth/passport/access-auth.guard';
 import { AccessMember } from 'src/auth/decorators/jwt-member.decorator';
 import { type JwtData } from 'src/auth/interfaces/jwt.interface';
@@ -95,6 +97,12 @@ export class CampinfoController {
     dto.email = accessMember.email;
     await this.campinfoService.addReview(dto);
     return { message: '리뷰가 등록되었습니다.' };
+  }
+
+  @Delete('/members/reviews')
+  @HttpCode(204)
+  async deleteReview(@Body() dto: RequestRemoveReviewDto) {
+    await this.campinfoService.removeReview(dto);
   }
 
   @Get('/reviews/board/:mapX/:mapY')

@@ -19,6 +19,7 @@ import { ResponseGetReviewList } from './dto/response/response-get-review-list.d
 import { ResponseGetBoardReviewRankList } from './dto/response/response-get-board-review-rank-list.dto';
 import { InvalidLimitException } from './exceptions/invalid-limit.exception';
 import { RequestAddReviewDto } from './dto/request/request-add-review.dto';
+import { RequestRemoveReviewDto } from './dto/request/request-remove-review.dto';
 import { Member } from 'src/auth/entities/member.entity';
 import { MemberNotFoundException } from 'src/member/exceptions/member-not-found.exception';
 import { ReviewOfBoard } from './entities/review-of-board.entity';
@@ -26,6 +27,7 @@ import { CallCampApiException } from './exceptions/call-camp-api.exception';
 import { ResponseGetMyReviewList } from './dto/response/response-get-my-review-list.dto';
 import { ResponseGetMyReviewWrapper } from './dto/response/response-get-my-review-rapper.dto';
 import { ResponseGetBoardReview } from './dto/response/response-get-board-review.dto';
+import { NullReviewException } from './exceptions/null-review.exception';
 interface CampingApiResponse {
   response: {
     header: {
@@ -289,6 +291,51 @@ export class CampinfoService {
         mapY: dto.mapY,
       });
       await this.reviewOfBoardRepository.save(newReviewOfBoard);
+    }
+  }
+
+  async removeReview(dto: RequestRemoveReviewDto): Promise<void> {
+    const deleteReview = await this.reviewRepository.findOne({
+      where: { id: dto.id },
+    });
+
+    if (!deleteReview) {
+      throw new NullReviewException(`삭제할 리뷰 없음: id = ${dto.id}`);
+    }
+
+    await this.reviewRepository.delete(dto.id);
+
+    const reviewOfBoard = await this.reviewOfBoardRepository.findOne({
+      where: { mapX: deleteReview.mapX, mapY: deleteReview.mapY },
+    });
+
+    if (reviewOfBoard) {
+      // reviewCount가 1이면 마지막 리뷰이므로 ReviewOfBoard 삭제
+      if (reviewOfBoard.reviewCount === 1) {
+        await this.reviewOfBoardRepository.delete({
+          mapX: deleteReview.mapX,
+          mapY: deleteReview.mapY,
+        });
+      } else {
+        // reviewCount > 1이면 평균 재계산 후 저장
+        reviewOfBoard.reviewAverage =
+          (reviewOfBoard.reviewAverage * reviewOfBoard.reviewCount -
+            deleteReview.reviewScore) /
+          (reviewOfBoard.reviewCount - 1);
+        reviewOfBoard.reviewCount = reviewOfBoard.reviewCount - 1;
+        await this.reviewOfBoardRepository.save(reviewOfBoard);
+
+        // reviewCount가 0이 되면 삭제
+        const checkReviewOfBoard = await this.reviewOfBoardRepository.findOne({
+          where: { mapX: deleteReview.mapX, mapY: deleteReview.mapY },
+        });
+        if (checkReviewOfBoard && checkReviewOfBoard.reviewCount === 0) {
+          await this.reviewOfBoardRepository.delete({
+            mapX: deleteReview.mapX,
+            mapY: deleteReview.mapY,
+          });
+        }
+      }
     }
   }
 

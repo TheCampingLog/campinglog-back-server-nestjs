@@ -391,6 +391,120 @@ describe('AppController (e2e)', () => {
       .expect(400);
   });
 
+  it('/api/camps/members/reviews (DELETE) 204 - 리뷰 삭제 성공 (ReviewOfBoard 업데이트)', async () => {
+    const { accessToken } = await createMemberAndLogin('delete@example.com');
+
+    const mapX = '127.2636514';
+    const mapY = '37.0323408';
+
+    // 첫 번째 리뷰 추가
+    await request(app.getHttpServer())
+      .post('/api/camps/members/reviews')
+      .set('Authorization', accessToken)
+      .send({
+        mapX,
+        mapY,
+        reviewContent: '첫 번째 리뷰',
+        reviewScore: 3,
+      })
+      .expect(201);
+
+    // 두 번째 리뷰 추가
+    await request(app.getHttpServer())
+      .post('/api/camps/members/reviews')
+      .set('Authorization', accessToken)
+      .send({
+        mapX,
+        mapY,
+        reviewContent: '두 번째 리뷰',
+        reviewScore: 5,
+      })
+      .expect(201);
+
+    // 첫 번째 리뷰 조회
+    const reviews = await reviewRepository.find({
+      where: { mapX, mapY },
+      order: { id: 'ASC' },
+    });
+    const firstReviewId = reviews[0].id;
+
+    // 첫 번째 리뷰 삭제
+    await request(app.getHttpServer())
+      .delete('/api/camps/members/reviews')
+      .send({ id: firstReviewId })
+      .expect(204);
+
+    // 삭제 확인
+    const deletedReview = await reviewRepository.findOne({
+      where: { id: firstReviewId },
+    });
+    expect(deletedReview).toBeNull();
+
+    // 남은 리뷰 확인
+    const remainingReviews = await reviewRepository.find({
+      where: { mapX, mapY },
+    });
+    expect(remainingReviews.length).toBe(1);
+
+    // ReviewOfBoard 확인
+    const reviewOfBoard = await reviewOfBoardRepository.findOne({
+      where: { mapX, mapY },
+    });
+    expect(reviewOfBoard).toBeDefined();
+    expect(reviewOfBoard!.reviewCount).toBe(1);
+    // (4 * 2 - 3) / 1 = 5
+    expect(Number(reviewOfBoard!.reviewAverage)).toBe(5);
+  });
+
+  it('/api/camps/members/reviews (DELETE) 204 - 마지막 리뷰 삭제 (ReviewOfBoard 삭제)', async () => {
+    const { accessToken } = await createMemberAndLogin('delete2@example.com');
+
+    const mapX = '127.2636514';
+    const mapY = '37.0323408';
+
+    // 리뷰 추가
+    await request(app.getHttpServer())
+      .post('/api/camps/members/reviews')
+      .set('Authorization', accessToken)
+      .send({
+        mapX,
+        mapY,
+        reviewContent: '유일한 리뷰',
+        reviewScore: 4,
+      })
+      .expect(201);
+
+    // 리뷰 조회
+    const review = await reviewRepository.findOne({
+      where: { mapX, mapY },
+    });
+
+    // 리뷰 삭제
+    await request(app.getHttpServer())
+      .delete('/api/camps/members/reviews')
+      .send({ id: review!.id })
+      .expect(204);
+
+    // 삭제 확인
+    const deletedReview = await reviewRepository.findOne({
+      where: { id: review!.id },
+    });
+    expect(deletedReview).toBeNull();
+
+    // ReviewOfBoard도 삭제되었는지 확인
+    const reviewOfBoard = await reviewOfBoardRepository.findOne({
+      where: { mapX, mapY },
+    });
+    expect(reviewOfBoard).toBeNull();
+  });
+
+  it('/api/camps/members/reviews (DELETE) 404 - 존재하지 않는 리뷰', async () => {
+    await request(app.getHttpServer())
+      .delete('/api/camps/members/reviews')
+      .send({ id: 99999 })
+      .expect(404);
+  });
+
   it('/api/camps/reviews/board/:mapX/:mapY (GET) 200', async () => {
     const mapX = '129.634822811708';
     const mapY = '36.8780509365952';
