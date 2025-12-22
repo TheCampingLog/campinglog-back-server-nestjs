@@ -27,7 +27,9 @@ import { CallCampApiException } from './exceptions/call-camp-api.exception';
 import { ResponseGetMyReviewList } from './dto/response/response-get-my-review-list.dto';
 import { ResponseGetMyReviewWrapper } from './dto/response/response-get-my-review-rapper.dto';
 import { ResponseGetBoardReview } from './dto/response/response-get-board-review.dto';
+import { RequestSetReview } from './dto/request/request-set-review.dto';
 import { NullReviewException } from './exceptions/null-review.exception';
+
 interface CampingApiResponse {
   response: {
     header: {
@@ -414,6 +416,62 @@ export class CampinfoService {
       totalPage: Math.ceil(total / size),
       hasNext: skip + take < total,
     };
+  }
+
+  async setReview(
+    email: string,
+    requestSetReview: RequestSetReview,
+  ): Promise<void> {
+    const member = await this.memberRepository.findOneBy({ email });
+    if (!member) {
+      throw new MemberNotFoundException(email);
+    }
+
+    const { id, newReviewContent, newReviewScore, newReviewImage } =
+      requestSetReview;
+
+    const review = await this.reviewRepository.findOne({
+      where: { id },
+    });
+
+    if (!review) {
+      throw new NullReviewException(`리뷰 없음: id=${id}`);
+    }
+
+    let updated = false;
+
+    if (review.reviewContent !== newReviewContent) {
+      review.reviewContent = newReviewContent;
+      updated = true;
+    }
+
+    if (review.reviewScore !== newReviewScore) {
+      const oldScore = review.reviewScore;
+      review.reviewScore = newReviewScore;
+      updated = true;
+
+      const reviewOfBoard = await this.reviewOfBoardRepository.findOne({
+        where: { mapX: review.mapX, mapY: review.mapY },
+      });
+
+      if (reviewOfBoard) {
+        reviewOfBoard.reviewAverage =
+          (reviewOfBoard.reviewAverage * reviewOfBoard.reviewCount +
+            (newReviewScore - oldScore)) /
+          reviewOfBoard.reviewCount;
+
+        await this.reviewOfBoardRepository.save(reviewOfBoard);
+      }
+    }
+
+    if (review.reviewImage !== newReviewImage) {
+      review.reviewImage = newReviewImage;
+      updated = true;
+    }
+
+    if (updated) {
+      await this.reviewRepository.save(review);
+    }
   }
 
   parseItems<T>(json: CampingApiResponse, type: new () => T): T[] {
