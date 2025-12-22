@@ -172,4 +172,12 @@ export class MemberController {
   async checkNicknameAvailable(@Query('nickname') nickname: string) {
     return await this.memberService.checkNicknameAvailable(nickname);
   }
+
+  // 내 활동 조회
+  @UseGuards(AccessAuthGuard)
+  @HttpCode(200)
+  @Get('/mypage/summary')
+  async getMySummary(@AccessMember() accessMember: JwtData) {
+    return await this.memberService.getMemberActivity(accessMember.email);
+  }
 }

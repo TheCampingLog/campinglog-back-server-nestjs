@@ -22,6 +22,8 @@ import { RequestSetProfileImageDto } from 'src/member/dto/request/request-set-pr
 import { ResponseGetMemberProfileImageDto } from 'src/member/dto/response/response-get-member-profile-image.dto';
 import { ReqeustVerifyPasswordDto } from 'src/member/dto/request/request-verify-password.dto';
 import { RequestChangePasswordDto } from 'src/member/dto/request/request-change-password.dto';
+import { ResponseGetMemberActivityDto } from 'src/member/dto/response/response-get-member-activity.dto';
+import { Review } from 'src/campinfo/entities/review.entity';
 
 describe('MemberController (e2e)', () => {
   let app: INestApplication<App>;
@@ -29,6 +31,7 @@ describe('MemberController (e2e)', () => {
   let boardRepository: Repository<Board>;
   let boardLikeRepository: Repository<BoardLike>;
   let commentRepository: Repository<Comment>;
+  let reviewRepository: Repository<Review>;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -55,6 +58,7 @@ describe('MemberController (e2e)', () => {
     boardRepository = moduleFixture.get('BoardRepository');
     boardLikeRepository = moduleFixture.get('BoardLikeRepository');
     commentRepository = moduleFixture.get('CommentRepository');
+    reviewRepository = moduleFixture.get('ReviewRepository');
   });
   //회원 랭킹 조회
   const createTestBoard = (email: string, likeCount: number) => {
@@ -109,6 +113,19 @@ describe('MemberController (e2e)', () => {
     });
     const resultComment = await commentRepository.save(testComment);
     return resultComment;
+  };
+
+  // 내 활동 조회
+  const createAndSaveReview = async (member: Member): Promise<Review> => {
+    const testReview = reviewRepository.create({
+      mapX: '123',
+      mapY: '123',
+      reviewContent: '테스트 리뷰',
+      reviewScore: 4,
+      member: member,
+    });
+    const resultReview = await reviewRepository.save(testReview);
+    return resultReview;
   };
 
   afterEach(async () => {
@@ -724,5 +741,55 @@ describe('MemberController (e2e)', () => {
       .query('nickname=' + testMember.nickname)
       .send()
       .expect(400);
+  });
+
+  //내 활동 조회
+  it('/api/members/mypage/summary (GET) success', async () => {
+    //테스트 멤버 1개 생성
+    const testMember1 = await createAndSaveMember('test1@example.com');
+    //테스트 보드 7개 생성
+    await Promise.all([
+      createAndSaveBoard(testMember1.email, 10),
+      createAndSaveBoard(testMember1.email, 10),
+      createAndSaveBoard(testMember1.email, 10),
+      createAndSaveBoard(testMember1.email, 10),
+      createAndSaveBoard(testMember1.email, 10),
+      createAndSaveBoard(testMember1.email, 10),
+      createAndSaveBoard(testMember1.email, 10),
+    ]);
+
+    //테스트 리뷰 6개 생성
+    await Promise.all([
+      createAndSaveReview(testMember1),
+      createAndSaveReview(testMember1),
+      createAndSaveReview(testMember1),
+      createAndSaveReview(testMember1),
+      createAndSaveReview(testMember1),
+      createAndSaveReview(testMember1),
+    ]);
+
+    const validMember = {
+      email: testMember1.email,
+      password: 'test1234',
+    };
+
+    const loginResponse = await request(app.getHttpServer())
+      .post('/login')
+      .send(validMember)
+      .expect(200);
+
+    const accessToken = loginResponse.headers['authorization'];
+    expect(accessToken).toBeTruthy();
+
+    //when & then
+    const response = await request(app.getHttpServer())
+      .get('/api/members/mypage/summary')
+      .set('authorization', accessToken)
+      .expect(200);
+
+    const result = response.body as ResponseGetMemberActivityDto;
+
+    expect(result.boardCount).toBe(7);
+    expect(result.reviewCount).toBe(6);
   });
 });
