@@ -346,6 +346,116 @@ describe('CampinfoService', () => {
     );
   });
 
+  it('리뷰 삭제 테스트 - ReviewOfBoard 업데이트 (count > 1)', async () => {
+    //given
+    const member = memberRepository.create({
+      email: 'test@example.com',
+      password: 'password123',
+      name: '홍길동',
+      nickname: 'tester',
+      birthday: new Date('1990-01-01'),
+      phoneNumber: '010-1234-5678',
+    });
+    await memberRepository.save(member);
+
+    // 첫 번째 리뷰 추가
+    await service.addReview({
+      mapX: '127.2636514',
+      mapY: '37.0323408',
+      reviewContent: '첫 번째 리뷰',
+      reviewScore: 3,
+      email: member.email,
+    });
+
+    // 두 번째 리뷰 추가
+    await service.addReview({
+      mapX: '127.2636514',
+      mapY: '37.0323408',
+      reviewContent: '두 번째 리뷰',
+      reviewScore: 5,
+      email: member.email,
+    });
+
+    const reviews = await reviewRepository.find({
+      where: { mapX: '127.2636514', mapY: '37.0323408' },
+    });
+    const firstReviewId = reviews[0].id;
+
+    //when - 첫 번째 리뷰 삭제
+    await service.removeReview({ id: firstReviewId });
+
+    //then
+    const deletedReview = await reviewRepository.findOne({
+      where: { id: firstReviewId },
+    });
+    expect(deletedReview).toBeNull();
+
+    const remainingReviews = await reviewRepository.find({
+      where: { mapX: '127.2636514', mapY: '37.0323408' },
+    });
+    expect(remainingReviews.length).toBe(1);
+
+    const reviewOfBoard = await reviewOfBoardRepository.findOne({
+      where: { mapX: '127.2636514', mapY: '37.0323408' },
+    });
+    expect(reviewOfBoard).toBeDefined();
+    expect(reviewOfBoard!.reviewCount).toBe(1);
+    // (4 * 2 - 3) / 1 = 5
+    expect(reviewOfBoard!.reviewAverage).toBe(5);
+  });
+
+  it('리뷰 삭제 테스트 - 마지막 리뷰 (ReviewOfBoard 삭제)', async () => {
+    //given
+    const member = memberRepository.create({
+      email: 'test@example.com',
+      password: 'password123',
+      name: '홍길동',
+      nickname: 'tester',
+      birthday: new Date('1990-01-01'),
+      phoneNumber: '010-1234-5678',
+    });
+    await memberRepository.save(member);
+
+    // 리뷰 추가
+    await service.addReview({
+      mapX: '127.2636514',
+      mapY: '37.0323408',
+      reviewContent: '유일한 리뷰',
+      reviewScore: 4,
+      email: member.email,
+    });
+
+    const review = await reviewRepository.findOne({
+      where: { mapX: '127.2636514', mapY: '37.0323408' },
+    });
+
+    //when - 유일한 리뷰 삭제
+    await service.removeReview({ id: review!.id });
+
+    //then
+    const deletedReview = await reviewRepository.findOne({
+      where: { id: review!.id },
+    });
+    expect(deletedReview).toBeNull();
+
+    const reviewOfBoard = await reviewOfBoardRepository.findOne({
+      where: { mapX: '127.2636514', mapY: '37.0323408' },
+    });
+    expect(reviewOfBoard).toBeNull();
+  });
+
+  it('리뷰 삭제 테스트 - 리뷰 없음 에러', async () => {
+    //given
+    const dto = {
+      id: 99999,
+    };
+
+    //when & then
+    await expect(service.removeReview(dto)).rejects.toThrow(
+      '삭제할 리뷰 없음: id = 99999',
+    );
+  });
+
   it('게시판 리뷰 정보 조회', async () => {
     //given
     const mapX = '127.634822811708';
