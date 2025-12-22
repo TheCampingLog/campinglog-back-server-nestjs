@@ -177,7 +177,7 @@ export class MemberController {
   @UseGuards(AccessAuthGuard)
   @HttpCode(200)
   @Get('/mypage/summary')
-  async getMySummay(@AccessMember() accessMember: JwtData) {
+  async getMySummary(@AccessMember() accessMember: JwtData) {
     return await this.memberService.getMemberActivity(accessMember.email);
   }
 }
