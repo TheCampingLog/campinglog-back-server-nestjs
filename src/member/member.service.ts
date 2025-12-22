@@ -29,6 +29,8 @@ import * as bcrypt from 'bcrypt';
 import { InvalidPasswordException } from './exceptions/invalid-password.exception';
 import { PasswordMissMatchException } from './exceptions/password-miss-match.exception';
 import { DuplicateEmailException } from './exceptions/duplicate-email.exception';
+import { Review } from 'src/campinfo/entities/review.entity';
+import { ResponseGetMemberActivityDto } from './dto/response/response-get-member-activity.dto';
 
 @Injectable()
 export class MemberService {
@@ -44,6 +46,8 @@ export class MemberService {
     private readonly boardLikeRepository: Repository<BoardLike>,
     @InjectRepository(Comment)
     private readonly commentRepository: Repository<Comment>,
+    @InjectRepository(Review)
+    private readonly reviewRepository: Repository<Review>,
   ) {}
 
   async getMemberByEmail(email: string): Promise<Member | null> {
@@ -488,5 +492,32 @@ export class MemberService {
     if (isExist) {
       throw new DuplicateNicknameException();
     }
+  }
+
+  // 내 활동 조회
+  async getMemberActivity(
+    email: string,
+  ): Promise<ResponseGetMemberActivityDto> {
+    const boardCount = await this.boardRepository.count({
+      where: { member: { email } },
+    });
+    const commentCount = await this.commentRepository.count({
+      where: { member: { email } },
+    });
+    const reviewCount = await this.reviewRepository.count({
+      where: { member: { email } },
+    });
+
+    const likeSummaries = await this.sumLikesGroupByMember();
+    const likeCount =
+      likeSummaries.find((s) => s.memberId === email)?.totalLike ?? 0;
+
+    return {
+      email: email,
+      boardCount: boardCount,
+      commentCount: commentCount,
+      reviewCount: reviewCount,
+      likeCount: likeCount,
+    };
   }
 }

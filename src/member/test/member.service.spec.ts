@@ -19,6 +19,8 @@ import { RequestChangePasswordDto } from '../dto/request/request-change-password
 import { InvalidPasswordException } from '../exceptions/invalid-password.exception';
 import { PasswordMissMatchException } from '../exceptions/password-miss-match.exception';
 import { DuplicateEmailException } from '../exceptions/duplicate-email.exception';
+import { Review } from 'src/campinfo/entities/review.entity';
+import { ResponseGetMemberActivityDto } from '../dto/response/response-get-member-activity.dto';
 import * as bcrypt from 'bcrypt';
 
 describe('MemberService 단위테스트', () => {
@@ -28,12 +30,13 @@ describe('MemberService 단위테스트', () => {
   let boardRepository: Repository<Board>;
   let boardLikeRepository: Repository<BoardLike>;
   let commentRepository: Repository<Comment>;
+  let reviewRepository: Repository<Review>;
 
   beforeAll(async () => {
     module = await Test.createTestingModule({
       imports: [
         TestTypeOrmModule(),
-        TypeOrmModule.forFeature([Member, Board, BoardLike, Comment]),
+        TypeOrmModule.forFeature([Member, Board, BoardLike, Comment, Review]),
       ],
       providers: [MemberService],
     }).compile();
@@ -48,6 +51,9 @@ describe('MemberService 단위테스트', () => {
     );
     commentRepository = module.get<Repository<Comment>>(
       getRepositoryToken(Comment),
+    );
+    reviewRepository = module.get<Repository<Review>>(
+      getRepositoryToken(Review),
     );
   });
 
@@ -117,6 +123,19 @@ describe('MemberService 단위테스트', () => {
     });
     const resultComment = await commentRepository.save(testComment);
     return resultComment;
+  };
+
+  // 내 활동 조회
+  const createAndSaveReview = async (member: Member): Promise<Review> => {
+    const testReview = reviewRepository.create({
+      mapX: '123',
+      mapY: '123',
+      reviewContent: '테스트 리뷰',
+      reviewScore: 4,
+      member: member,
+    });
+    const resultReview = await reviewRepository.save(testReview);
+    return resultReview;
   };
 
   it('DB에 존재하는 이메일이면 멤버를 반환', async (): Promise<void> => {
@@ -594,5 +613,36 @@ describe('MemberService 단위테스트', () => {
     await expect(
       memberService.checkNicknameAvailable(testNickname),
     ).rejects.toThrow(DuplicateNicknameException);
+  });
+
+  //내가 활동 조회
+  it('멤버의 활동 기록을 반환', async () => {
+    //given
+    //테스트 멤버 2개 생성
+    const testMember1 = await createAndSaveMember('test1@example.com');
+    //테스트 보드 7개 생성
+    await Promise.all([
+      createAndSaveBoard(testMember1.email, 10),
+      createAndSaveBoard(testMember1.email, 10),
+      createAndSaveBoard(testMember1.email, 10),
+      createAndSaveBoard(testMember1.email, 10),
+      createAndSaveBoard(testMember1.email, 10),
+      createAndSaveBoard(testMember1.email, 10),
+      createAndSaveBoard(testMember1.email, 10),
+    ]);
+
+    await Promise.all([
+      createAndSaveReview(testMember1),
+      createAndSaveReview(testMember1),
+      createAndSaveReview(testMember1),
+      createAndSaveReview(testMember1),
+      createAndSaveReview(testMember1),
+      createAndSaveReview(testMember1),
+    ]);
+
+    const result: ResponseGetMemberActivityDto =
+      await memberService.getMemberActivity(testMember1.email);
+    expect(result.boardCount).toBe(7);
+    expect(result.reviewCount).toBe(6);
   });
 });
