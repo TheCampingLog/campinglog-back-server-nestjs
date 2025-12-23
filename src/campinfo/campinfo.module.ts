@@ -13,5 +13,6 @@ import { Member } from 'src/auth/entities/member.entity';
   ],
   controllers: [CampinfoController],
   providers: [CampinfoService],
+  exports: [CampinfoService],
 })
 export class CampinfoModule {}
