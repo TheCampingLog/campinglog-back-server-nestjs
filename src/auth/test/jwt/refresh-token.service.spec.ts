@@ -14,6 +14,10 @@ import {
   createInvalidTestMember,
 } from '../fixtures/member.fixture';
 import { QueryFailedError } from 'typeorm';
+import {
+  initializeTransactionalContext,
+  StorageDriver,
+} from 'typeorm-transactional';
 
 describe('RefreshTokenService 단위 테스트', () => {
   let module: TestingModule;
@@ -22,6 +26,8 @@ describe('RefreshTokenService 단위 테스트', () => {
   let memberRepository: Repository<Member>;
 
   beforeAll(async () => {
+    initializeTransactionalContext({ storageDriver: StorageDriver.AUTO });
+
     module = await Test.createTestingModule({
       imports: [
         TestTypeOrmModule(),

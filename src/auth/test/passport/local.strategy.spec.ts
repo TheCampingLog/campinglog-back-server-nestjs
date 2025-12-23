@@ -12,6 +12,10 @@ import { Member } from 'src/auth/entities/member.entity';
 import { RefreshToken } from 'src/auth/entities/refresh-token.entity';
 import { createTestMember } from '../fixtures/member.fixture';
 import { UnauthorizedException } from '@nestjs/common';
+import {
+  initializeTransactionalContext,
+  StorageDriver,
+} from 'typeorm-transactional';
 
 describe('LocalStrategy 단위테스트', () => {
   let localStrategy: LocalStrategy;
@@ -19,6 +23,8 @@ describe('LocalStrategy 단위테스트', () => {
   let memberRepository: Repository<Member>;
 
   beforeAll(async () => {
+    initializeTransactionalContext({ storageDriver: StorageDriver.AUTO });
+
     module = await Test.createTestingModule({
       imports: [
         TestTypeOrmModule(),

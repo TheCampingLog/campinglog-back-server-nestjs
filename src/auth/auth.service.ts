@@ -6,6 +6,7 @@ import { RequestAddMemberDto } from './dto/request/request-add-member.dto';
 import { Member } from './entities/member.entity';
 import * as bcrypt from 'bcrypt';
 import { MemberNotFoundException } from 'src/member/exceptions/member-not-found.exception';
+import { Transactional } from 'typeorm-transactional';
 
 @Injectable()
 export class AuthService {
@@ -54,6 +55,7 @@ export class AuthService {
   }
 
   //회원 탈퇴
+  @Transactional()
   async deleteMember(email: string): Promise<void> {
     const member = await this.memberRepository.findOne({
       where: { email },

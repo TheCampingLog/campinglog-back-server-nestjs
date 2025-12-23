@@ -8,6 +8,10 @@ import { Member } from '../../entities/member.entity';
 import { RefreshToken } from '../../entities/refresh-token.entity';
 import { type JwtData } from '../../../auth/interfaces/jwt.interface';
 import { UnauthorizedException } from '@nestjs/common';
+import {
+  initializeTransactionalContext,
+  StorageDriver,
+} from 'typeorm-transactional';
 
 describe('AccessStrategy 단위테스트', () => {
   let module: TestingModule;
@@ -15,6 +19,8 @@ describe('AccessStrategy 단위테스트', () => {
   let memberRepository: Repository<Member>;
 
   beforeAll(async () => {
+    initializeTransactionalContext({ storageDriver: StorageDriver.AUTO });
+
     module = await Test.createTestingModule({
       imports: [
         TestTypeOrmModule(),

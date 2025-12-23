@@ -31,6 +31,7 @@ import { PasswordMissMatchException } from './exceptions/password-miss-match.exc
 import { DuplicateEmailException } from './exceptions/duplicate-email.exception';
 import { Review } from 'src/campinfo/entities/review.entity';
 import { ResponseGetMemberActivityDto } from './dto/response/response-get-member-activity.dto';
+import { Transactional } from 'typeorm-transactional';
 
 @Injectable()
 export class MemberService {
@@ -54,6 +55,7 @@ export class MemberService {
     return await this.memberRepository.findOneBy({ email });
   }
 
+  @Transactional()
   async updateGradeWeekly(): Promise<number> {
     // 회원들의 게시판들의 좋아요 수를 합치고
     // 회원의 이메일과 좋아요 수의 객체들을 반환하는 함수
@@ -195,6 +197,7 @@ export class MemberService {
   }
 
   // 마이페이지 조회
+  @Transactional()
   async getMember(email: string): Promise<ResponseGetMemberDto> {
     const member = await this.memberRepository.findOneBy({ email });
 
@@ -218,6 +221,7 @@ export class MemberService {
   }
 
   // 마이 페이지 정보 수정
+  @Transactional()
   async setMember(email: string, requestUpdateMember: RequestUpdateMemberDto) {
     const member = await this.memberRepository.findOneBy({ email });
 
@@ -259,6 +263,7 @@ export class MemberService {
   }
 
   // 내가 쓴 글 조회
+  @Transactional()
   async getBoards(
     email: string,
     pageNo: number,
@@ -312,6 +317,7 @@ export class MemberService {
   }
 
   // 내가 작성한 댓글 리스트 조회
+  @Transactional()
   async getComments(
     email: string,
     pageNo: number,
@@ -366,6 +372,7 @@ export class MemberService {
   }
 
   //프로필 사진 조회
+  @Transactional()
   async getProfileImage(
     email: string,
   ): Promise<ResponseGetMemberProfileImageDto> {
@@ -385,6 +392,7 @@ export class MemberService {
   }
 
   //프로필 사진 등록
+  @Transactional()
   async addProfileImage(
     email: string,
     request: RequestSetProfileImageDto,
@@ -401,6 +409,7 @@ export class MemberService {
   }
 
   //프로필 사진 수정
+  @Transactional()
   async setProfileImage(
     email: string,
     request: RequestSetProfileImageDto,
@@ -417,6 +426,7 @@ export class MemberService {
   }
 
   //프로필 사진 삭제
+  @Transactional()
   async deleteProfileImage(email: string): Promise<void> {
     const member = await this.memberRepository.findOneBy({ email });
 
@@ -434,6 +444,7 @@ export class MemberService {
   }
 
   // 마이페이지 수정 전 비밀번호 확인
+  @Transactional()
   async verifyPassword(email: string, request: ReqeustVerifyPasswordDto) {
     const member = await this.memberRepository.findOneBy({ email });
 
@@ -452,6 +463,7 @@ export class MemberService {
   }
 
   // 비밀번호 수정
+  @Transactional()
   async setPassword(email: string, request: RequestChangePasswordDto) {
     const member = await this.memberRepository.findOneBy({ email });
 
@@ -479,6 +491,7 @@ export class MemberService {
   }
 
   // 회원가입 시 이메일 중복 확인
+  @Transactional()
   async checkEmailAvailable(email: string) {
     const isExist = await this.memberRepository.existsBy({ email });
     if (isExist) {
@@ -487,6 +500,7 @@ export class MemberService {
   }
 
   // 회원가입 시 닉네임 중복 확인
+  @Transactional()
   async checkNicknameAvailable(nickname: string) {
     const isExist = await this.memberRepository.existsBy({ nickname });
     if (isExist) {

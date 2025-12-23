@@ -7,6 +7,10 @@ import { Member } from 'src/auth/entities/member.entity';
 import { createTestMember } from '../fixtures/member.fixture';
 import { v4 as uuidv4 } from 'uuid';
 import { QueryFailedError } from 'typeorm';
+import {
+  initializeTransactionalContext,
+  StorageDriver,
+} from 'typeorm-transactional';
 
 describe('RefreshToken Repository 단위테스트', () => {
   let module: TestingModule;
@@ -14,6 +18,8 @@ describe('RefreshToken Repository 단위테스트', () => {
   let memberRepository: Repository<Member>;
 
   beforeAll(async () => {
+    initializeTransactionalContext({ storageDriver: StorageDriver.AUTO });
+
     module = await Test.createTestingModule({
       imports: [
         TestTypeOrmModule(),

@@ -4,8 +4,12 @@ import { ValidationPipe } from '@nestjs/common';
 import { Logger } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
+import { initializeTransactionalContext } from 'typeorm-transactional';
+import { StorageDriver } from 'typeorm-transactional';
 
 async function bootstrap() {
+  initializeTransactionalContext({ storageDriver: StorageDriver.AUTO });
+
   const app = await NestFactory.create(AppModule);
   const logger = new Logger('Bootstrap');
   const port = process.env.PORT || 3000;

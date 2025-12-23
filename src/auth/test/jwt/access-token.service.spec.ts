@@ -11,6 +11,10 @@ import { createTestMember } from '../fixtures/member.fixture';
 import { Member } from 'src/auth/entities/member.entity';
 import { RefreshToken } from 'src/auth/entities/refresh-token.entity';
 import { Repository } from 'typeorm';
+import {
+  initializeTransactionalContext,
+  StorageDriver,
+} from 'typeorm-transactional';
 
 describe('AccessTokenService 단위테스트', () => {
   let module: TestingModule;
@@ -18,6 +22,8 @@ describe('AccessTokenService 단위테스트', () => {
   let memberRepository: Repository<Member>;
 
   beforeAll(async () => {
+    initializeTransactionalContext({ storageDriver: StorageDriver.AUTO });
+
     module = await Test.createTestingModule({
       imports: [
         TestTypeOrmModule(),

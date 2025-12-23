@@ -10,12 +10,16 @@ import { Review } from './entities/review.entity';
 import { getRepositoryToken, TypeOrmModule } from '@nestjs/typeorm';
 import { Member } from 'src/auth/entities/member.entity';
 import { Board } from 'src/board/entities/board.entity';
-import { RefreshToken } from 'src/auth/entities/refresh-token.entity';
 import { BoardLike } from 'src/board/entities/board-like.entity';
 import { Comment } from 'src/board/entities/comment.entity';
 import { ReviewOfBoard } from './entities/review-of-board.entity';
 import { InvalidLimitException } from './exceptions/invalid-limit.exception';
 import { NullReviewException } from './exceptions/null-review.exception';
+import { TestTypeOrmModule } from 'src/config/test-db.module';
+import {
+  initializeTransactionalContext,
+  StorageDriver,
+} from 'typeorm-transactional';
 
 describe('CampinfoService', () => {
   let service: CampinfoService;
@@ -24,6 +28,8 @@ describe('CampinfoService', () => {
   let reviewOfBoardRepository: Repository<ReviewOfBoard>;
   let module: TestingModule | null = null;
   beforeAll(async () => {
+    initializeTransactionalContext({ storageDriver: StorageDriver.AUTO });
+
     module = await Test.createTestingModule({
       imports: [
         ConfigModule.forRoot({
@@ -31,21 +37,7 @@ describe('CampinfoService', () => {
           envFilePath: 'src/config/env/.dev.env',
         }),
         HttpConfigModule,
-        TypeOrmModule.forRoot({
-          type: 'sqlite',
-          database: ':memory:',
-          entities: [
-            Member,
-            Review,
-            Board,
-            Comment,
-            BoardLike,
-            RefreshToken,
-            ReviewOfBoard,
-          ],
-          synchronize: true,
-          dropSchema: true,
-        }),
+        TestTypeOrmModule(),
         TypeOrmModule.forFeature([
           Member,
           Review,
@@ -81,6 +73,7 @@ describe('CampinfoService', () => {
     await reviewRepository.clear();
     await memberRepository.clear();
   });
+
   it('캠핑장 목록 조회 테스트', async () => {
     //given
     const pageNo = 1;

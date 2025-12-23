@@ -25,6 +25,10 @@ import { RequestChangePasswordDto } from 'src/member/dto/request/request-change-
 import { ResponseGetMemberActivityDto } from 'src/member/dto/response/response-get-member-activity.dto';
 import { Review } from 'src/campinfo/entities/review.entity';
 import { ResponseGetMyReviewWrapper } from 'src/campinfo/dto/response/response-get-my-review-rapper.dto';
+import {
+  initializeTransactionalContext,
+  StorageDriver,
+} from 'typeorm-transactional';
 
 describe('MemberController (e2e)', () => {
   let app: INestApplication<App>;
@@ -35,6 +39,8 @@ describe('MemberController (e2e)', () => {
   let reviewRepository: Repository<Review>;
 
   beforeAll(async () => {
+    initializeTransactionalContext({ storageDriver: StorageDriver.AUTO });
+
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();

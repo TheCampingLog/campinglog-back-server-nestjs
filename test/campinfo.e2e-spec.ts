@@ -16,6 +16,10 @@ import { ResponseGetReviewListWrapper } from 'src/campinfo/dto/response/response
 import { ReviewOfBoard } from 'src/campinfo/entities/review-of-board.entity';
 import { RequestAddMemberDto } from 'src/auth/dto/request/request-add-member.dto';
 import { ResponseGetBoardReview } from 'src/campinfo/dto/response/response-get-board-review.dto';
+import {
+  initializeTransactionalContext,
+  StorageDriver,
+} from 'typeorm-transactional';
 
 describe('AppController (e2e)', () => {
   let app: INestApplication<App>;
@@ -23,7 +27,9 @@ describe('AppController (e2e)', () => {
   let memberRepository: Repository<Member>;
   let reviewOfBoardRepository: Repository<ReviewOfBoard>;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
+    initializeTransactionalContext({ storageDriver: StorageDriver.AUTO });
+
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
@@ -46,6 +52,16 @@ describe('AppController (e2e)', () => {
     reviewRepository = moduleFixture.get('ReviewRepository');
     memberRepository = moduleFixture.get('MemberRepository');
     reviewOfBoardRepository = moduleFixture.get('ReviewOfBoardRepository');
+  });
+
+  afterEach(async () => {
+    await reviewOfBoardRepository.clear();
+    await reviewRepository.clear();
+    await memberRepository.clear();
+  });
+
+  afterAll(async () => {
+    await app.close();
   });
 
   const createMemberAndLogin = async (
