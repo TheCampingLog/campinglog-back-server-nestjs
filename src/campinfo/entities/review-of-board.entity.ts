@@ -1,9 +1,10 @@
 import { Entity, PrimaryGeneratedColumn, Column, Unique } from 'typeorm';
+import { getPrimaryGeneratedColumnType } from 'src/config/database.config';
 
 @Entity('review_of_board')
 @Unique('uk_review_of_board_mapx_mapy', ['mapX', 'mapY'])
 export class ReviewOfBoard {
-  @PrimaryGeneratedColumn()
+  @PrimaryGeneratedColumn({ type: getPrimaryGeneratedColumnType() })
   id: number;
 
   @Column({ name: 'review_count', type: 'int', nullable: false })

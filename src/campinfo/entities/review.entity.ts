@@ -8,10 +8,11 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { getPrimaryGeneratedColumnType } from 'src/config/database.config';
 
 @Entity('reviews')
 export class Review {
-  @PrimaryGeneratedColumn()
+  @PrimaryGeneratedColumn({ type: getPrimaryGeneratedColumnType() })
   id: number;
 
   @Column({ name: 'map_x', nullable: false })
