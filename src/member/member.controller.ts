@@ -1,3 +1,4 @@
+import { CampinfoService } from './../campinfo/campinfo.service';
 import {
   Controller,
   Get,
@@ -20,7 +21,10 @@ import { RequestChangePasswordDto } from './dto/request/request-change-password.
 
 @Controller('api/members')
 export class MemberController {
-  constructor(private readonly memberService: MemberService) {}
+  constructor(
+    private readonly memberService: MemberService,
+    private readonly CampinfoService: CampinfoService,
+  ) {}
 
   @UseGuards(AccessAuthGuard)
   @Get('/test')
@@ -85,6 +89,22 @@ export class MemberController {
     @Query('pageNo') pageNo: number = 1,
   ) {
     return await this.memberService.getComments(accessMember.email, pageNo);
+  }
+
+  //내가 작성한 리뷰 리스트 조회
+  @UseGuards(AccessAuthGuard)
+  @HttpCode(200)
+  @Get('/mypage/reviews')
+  async getReviews(
+    @AccessMember() accessMember: JwtData,
+    @Query('pageNo') pageNo: number = 1,
+    @Query('size') size: number,
+  ) {
+    return await this.CampinfoService.getMyReviews(
+      accessMember.email,
+      pageNo,
+      size,
+    );
   }
 
   //  프로필 사진 조회

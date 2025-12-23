@@ -24,6 +24,7 @@ import { ReqeustVerifyPasswordDto } from 'src/member/dto/request/request-verify-
 import { RequestChangePasswordDto } from 'src/member/dto/request/request-change-password.dto';
 import { ResponseGetMemberActivityDto } from 'src/member/dto/response/response-get-member-activity.dto';
 import { Review } from 'src/campinfo/entities/review.entity';
+import { ResponseGetMyReviewWrapper } from 'src/campinfo/dto/response/response-get-my-review-rapper.dto';
 
 describe('MemberController (e2e)', () => {
   let app: INestApplication<App>;
@@ -118,8 +119,8 @@ describe('MemberController (e2e)', () => {
   // 내 활동 조회
   const createAndSaveReview = async (member: Member): Promise<Review> => {
     const testReview = reviewRepository.create({
-      mapX: '123',
-      mapY: '123',
+      mapX: '127.2636514',
+      mapY: '37.0323408',
       reviewContent: '테스트 리뷰',
       reviewScore: 4,
       member: member,
@@ -463,6 +464,54 @@ describe('MemberController (e2e)', () => {
     const result = response.body as ResponseGetMemberCommentListDto;
 
     expect(result.items.length).toBe(3);
+  });
+
+  // 내가 작성한 리뷰 리스트 조회 (Full Integration Test)
+  it('/api/members/mypage/reviews (GET) success', async () => {
+    // [Given]
+    const testMember = await createAndSaveMember('test1@example.com');
+
+    // 일단 7개의 리뷰를 생성합니다.
+    await Promise.all([
+      createAndSaveReview(testMember),
+      createAndSaveReview(testMember),
+      createAndSaveReview(testMember),
+      createAndSaveReview(testMember),
+      createAndSaveReview(testMember),
+      createAndSaveReview(testMember),
+      createAndSaveReview(testMember),
+    ]);
+
+    const validMember = {
+      email: testMember.email,
+      password: 'test1234',
+    };
+
+    // 실제 로그인 처리 (JWT 획득)
+    const loginResponse = await request(app.getHttpServer())
+      .post('/login')
+      .send(validMember)
+      .expect(200);
+
+    const accessToken = loginResponse.headers['authorization'];
+
+    // [When] 실제 외부 API 통신을 포함하여 전체 로직 수행
+    const response = await request(app.getHttpServer())
+      .get('/api/members/mypage/reviews')
+      .query({ pageNo: 2, size: 7 }) // 2페이지 요청, 사이즈 5
+      .set('authorization', accessToken);
+
+    // [Then] 503 에러가 난다면 여기서 원인 파악을 위해 로그 출력
+    if (response.status !== 200) {
+      console.log('실제 응답 에러 내용:', response.body);
+    }
+
+    expect(response.status).toBe(200);
+
+    const result = response.body as ResponseGetMyReviewWrapper;
+
+    expect(result.totalElements).toBe(7);
+    expect(result.content.length).toBe(0);
   });
 
   //프로필 사진 조회
