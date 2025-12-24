@@ -6,11 +6,12 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
 import { initializeTransactionalContext } from 'typeorm-transactional';
 import { StorageDriver } from 'typeorm-transactional';
+import helmet from 'helmet';
 
 async function bootstrap() {
   initializeTransactionalContext({ storageDriver: StorageDriver.AUTO });
 
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { cors: true });
   const logger = new Logger('Bootstrap');
   const port = process.env.PORT || 3000;
 
@@ -21,7 +22,10 @@ async function bootstrap() {
     // .addBearerAuth() // JWT Auth 쓰면 등록
     .build();
 
+  app.use(helmet());
+
   app.use(cookieParser());
+
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
