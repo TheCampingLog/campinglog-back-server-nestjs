@@ -7,14 +7,14 @@ import {
   CreateDateColumn,
   ManyToOne,
 } from 'typeorm';
-
 import { Board } from './board.entity';
 import { Member } from '../../auth/entities/member.entity';
 import { v4 as uuidv4 } from 'uuid';
+import { getPrimaryGeneratedColumnType } from 'src/config/database.config';
 
 @Entity('comment')
 export class Comment {
-  @PrimaryGeneratedColumn()
+  @PrimaryGeneratedColumn({ type: getPrimaryGeneratedColumnType() })
   id: number;
 
   @Column({ name: 'comment_id', unique: true })

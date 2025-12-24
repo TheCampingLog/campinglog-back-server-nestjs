@@ -6,11 +6,15 @@ import { Member } from '../auth/entities/member.entity';
 import { Comment } from './entities/comment.entity';
 import { BoardLike } from './entities/board-like.entity';
 import { TypeOrmModule, getRepositoryToken } from '@nestjs/typeorm';
-import { RefreshToken } from '../auth/entities/refresh-token.entity';
 import { RequestAddBoardDto } from './dto/request/request-add-board.dto';
 import { RequestSetBoardDto } from './dto/request/request-set-board.dto';
 import { BoardNotFoundException } from './exceptions/board-not-found.exception';
 import { Review } from 'src/campinfo/entities/review.entity';
+import { TestTypeOrmModule } from 'src/config/test-db.module';
+import {
+  initializeTransactionalContext,
+  StorageDriver,
+} from 'typeorm-transactional';
 
 describe('BoardService', () => {
   let service: BoardService;
@@ -21,15 +25,11 @@ describe('BoardService', () => {
   let module: TestingModule | null = null;
 
   beforeAll(async () => {
+    initializeTransactionalContext({ storageDriver: StorageDriver.AUTO });
+
     module = await Test.createTestingModule({
       imports: [
-        TypeOrmModule.forRoot({
-          type: 'sqlite',
-          database: ':memory:',
-          entities: [Board, Member, Comment, Review, BoardLike, RefreshToken],
-          synchronize: true,
-          dropSchema: true,
-        }),
+        TestTypeOrmModule(),
         TypeOrmModule.forFeature([Board, Member, Comment, BoardLike, Review]),
       ],
       providers: [BoardService],

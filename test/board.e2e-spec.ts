@@ -11,6 +11,10 @@ import { BoardLike } from 'src/board/entities/board-like.entity';
 import { Comment } from 'src/board/entities/comment.entity';
 import { Repository } from 'typeorm';
 import cookieParser from 'cookie-parser';
+import {
+  initializeTransactionalContext,
+  StorageDriver,
+} from 'typeorm-transactional';
 
 describe('BoardController (e2e)', () => {
   let app: INestApplication<App>;
@@ -20,6 +24,8 @@ describe('BoardController (e2e)', () => {
   let commentRepository: Repository<Comment>;
 
   beforeAll(async () => {
+    initializeTransactionalContext({ storageDriver: StorageDriver.AUTO });
+
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
@@ -43,6 +49,10 @@ describe('BoardController (e2e)', () => {
     memberRepository = moduleFixture.get('MemberRepository');
     commentRepository = moduleFixture.get('CommentRepository');
     boardLikeRepository = moduleFixture.get('BoardLikeRepository');
+  });
+
+  afterAll(async () => {
+    await app.close();
   });
 
   const createMemberAndLogin = async (

@@ -1,7 +1,6 @@
 import {
   BeforeInsert,
   Column,
-  CreateDateColumn,
   Entity,
   OneToMany,
   PrimaryColumn,
@@ -11,6 +10,7 @@ import { BoardLike } from 'src/board/entities/board-like.entity';
 import { Comment } from 'src/board/entities/comment.entity';
 import { RefreshToken } from './refresh-token.entity';
 import { Review } from 'src/campinfo/entities/review.entity';
+import { getColumnType } from 'src/config/database.config';
 
 export enum Role {
   USER = 'USER',
@@ -38,7 +38,7 @@ export class Member {
   @Column({ name: 'nickname', nullable: false })
   nickname: string;
 
-  @Column({ name: 'birthday', nullable: false })
+  @Column({ type: 'date', name: 'birthday', nullable: false })
   birthday: Date;
 
   @Column({ name: 'phone_number', nullable: false })
@@ -47,13 +47,18 @@ export class Member {
   @Column({ name: 'profile_image', type: 'varchar', nullable: true })
   profileImage?: string | null;
 
-  @Column({ name: 'role', nullable: false })
-  role?: string;
+  @Column({ type: getColumnType(), enum: Role, name: 'role', nullable: false })
+  role?: Role;
 
-  @Column({ name: 'member_grade', nullable: false })
-  memberGrade?: string;
+  @Column({
+    type: getColumnType(),
+    enum: MemberGrade,
+    name: 'member_grade',
+    nullable: false,
+  })
+  memberGrade?: MemberGrade;
 
-  @CreateDateColumn({ name: 'join_date', nullable: false })
+  @Column({ type: 'date', name: 'join_date', nullable: false })
   joinDate?: Date;
 
   @Column({ name: 'oauth', nullable: false })
@@ -101,6 +106,10 @@ export class Member {
 
     if (!this.oauth) {
       this.oauth = false;
+    }
+
+    if (!this.joinDate) {
+      this.joinDate = new Date();
     }
   }
 }

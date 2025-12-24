@@ -12,10 +12,11 @@ import { Member } from '../../auth/entities/member.entity';
 import { Comment } from './comment.entity';
 import { BoardLike } from './board-like.entity';
 import { v4 as uuidv4 } from 'uuid';
+import { getPrimaryGeneratedColumnType } from 'src/config/database.config';
 
 @Entity('board')
 export class Board {
-  @PrimaryGeneratedColumn()
+  @PrimaryGeneratedColumn({ type: getPrimaryGeneratedColumnType() })
   id: number;
 
   @Column({ name: 'board_id', nullable: false, unique: true })

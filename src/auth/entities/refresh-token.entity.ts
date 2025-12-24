@@ -7,11 +7,12 @@ import {
   Index,
 } from 'typeorm';
 import { Member } from './member.entity';
+import { getPrimaryGeneratedColumnType } from 'src/config/database.config';
 
 @Entity('refresh_tokens')
 @Index(['jti'], { unique: true })
 export class RefreshToken {
-  @PrimaryGeneratedColumn()
+  @PrimaryGeneratedColumn({ type: getPrimaryGeneratedColumnType() })
   id: number;
 
   @Column({ name: 'jti', nullable: false })

@@ -15,6 +15,10 @@ import {
   createInvalidTestMember,
 } from './fixtures/member.fixture';
 import { MemberNotFoundException } from 'src/member/exceptions/member-not-found.exception';
+import {
+  initializeTransactionalContext,
+  StorageDriver,
+} from 'typeorm-transactional';
 
 describe('AuthService 단위테스트', () => {
   let authService: AuthService;
@@ -22,6 +26,8 @@ describe('AuthService 단위테스트', () => {
   let module: TestingModule;
 
   beforeAll(async () => {
+    initializeTransactionalContext({ storageDriver: StorageDriver.AUTO });
+
     module = await Test.createTestingModule({
       imports: [
         TestTypeOrmModule(),

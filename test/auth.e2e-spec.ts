@@ -9,12 +9,18 @@ import cookieParser from 'cookie-parser';
 import * as crypto from 'crypto';
 import { Repository } from 'typeorm';
 import { Member } from 'src/auth/entities/member.entity';
+import {
+  initializeTransactionalContext,
+  StorageDriver,
+} from 'typeorm-transactional';
 
 describe('AuthController (e2e)', () => {
   let app: INestApplication<App>;
   let memberRepository: Repository<Member>;
 
   beforeAll(async () => {
+    initializeTransactionalContext({ storageDriver: StorageDriver.AUTO });
+
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();

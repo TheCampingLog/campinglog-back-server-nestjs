@@ -25,6 +25,7 @@ import { RequestAddLikeDto } from './dto/request/request-add-like.dto';
 import { ResponseToggleLikeDto } from './dto/response/response-toggle-like.dto';
 import { AlreadyLikedException } from './exceptions/already-liked.exception';
 import { NotLikedException } from './exceptions/not-liked.exception';
+import { Transactional } from 'typeorm-transactional';
 
 @Injectable()
 export class BoardService {
@@ -39,6 +40,7 @@ export class BoardService {
     private readonly commentRepository: Repository<Comment>,
   ) {}
 
+  @Transactional()
   private async getMemberOrThrow(email: string): Promise<Member> {
     const member = await this.memberRepository.findOne({
       where: { email },
@@ -50,6 +52,8 @@ export class BoardService {
 
     return member;
   }
+
+  @Transactional()
   private async getBoardOrThrow(boardId: string): Promise<Board> {
     const board = await this.boardRepository.findOne({
       where: { boardId },
@@ -63,6 +67,7 @@ export class BoardService {
     return board;
   }
 
+  @Transactional()
   private async getCommentOrThrow(commentId: string): Promise<Comment> {
     const comment = await this.commentRepository.findOne({
       where: { commentId },
@@ -76,6 +81,7 @@ export class BoardService {
     return comment;
   }
 
+  @Transactional()
   async addBoard(dto: RequestAddBoardDto): Promise<Board> {
     const member = await this.getMemberOrThrow(dto.email as string);
 
@@ -92,6 +98,8 @@ export class BoardService {
 
     return this.boardRepository.save(board);
   }
+
+  @Transactional()
   async setBoard(dto: RequestSetBoardDto): Promise<void> {
     const board = await this.getBoardOrThrow(dto.boardId!);
 
@@ -110,6 +118,7 @@ export class BoardService {
     await this.boardRepository.save(board);
   }
 
+  @Transactional()
   async getBoardRank(limit: number): Promise<ResponseGetBoardRankDto[]> {
     if (limit < 1) {
       throw new InvalidBoardRequestException('limit는 1 이상이어야 합니다.');
@@ -140,11 +149,14 @@ export class BoardService {
       viewCount: board.viewCount,
     }));
   }
+
+  @Transactional()
   async deleteBoard(boardId: string): Promise<void> {
     const board = await this.getBoardOrThrow(boardId);
     await this.boardRepository.remove(board);
   }
 
+  @Transactional()
   async searchBoards(
     keyword: string,
     category: string,
@@ -197,6 +209,7 @@ export class BoardService {
     };
   }
 
+  @Transactional()
   async getBoardDetail(
     boardId: string,
     userEmail?: string,
@@ -234,6 +247,7 @@ export class BoardService {
     };
   }
 
+  @Transactional()
   async getBoardsByCategory(
     category: string,
     page: number,
@@ -283,6 +297,7 @@ export class BoardService {
     };
   }
 
+  @Transactional()
   async addComment(
     boardId: string,
     dto: RequestAddCommentDto,
@@ -308,6 +323,7 @@ export class BoardService {
     return savedComment;
   }
 
+  @Transactional()
   async getComments(
     boardId: string,
     page: number,
@@ -351,6 +367,8 @@ export class BoardService {
       size,
     };
   }
+
+  @Transactional()
   async updateComment(
     boardId: string,
     commentId: string,
@@ -379,6 +397,7 @@ export class BoardService {
     await this.commentRepository.save(comment);
   }
 
+  @Transactional()
   async deleteComment(
     boardId: string,
     commentId: string,
@@ -410,6 +429,7 @@ export class BoardService {
     await this.boardRepository.save(board);
   }
 
+  @Transactional()
   async getLikes(boardId: string): Promise<ResponseGetLikeDto> {
     // 게시글 존재 확인
     const board = await this.getBoardOrThrow(boardId);
@@ -417,6 +437,7 @@ export class BoardService {
     return new ResponseGetLikeDto(board.boardId, board.likeCount);
   }
 
+  @Transactional()
   async addLike(
     boardId: string,
     dto: RequestAddLikeDto,
@@ -453,6 +474,7 @@ export class BoardService {
     return new ResponseToggleLikeDto(true, board.likeCount);
   }
 
+  @Transactional()
   async deleteLike(
     boardId: string,
     email: string,

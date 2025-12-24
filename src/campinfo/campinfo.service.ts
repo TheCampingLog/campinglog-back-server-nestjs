@@ -29,6 +29,7 @@ import { ResponseGetMyReviewWrapper } from './dto/response/response-get-my-revie
 import { ResponseGetBoardReview } from './dto/response/response-get-board-review.dto';
 import { RequestSetReview } from './dto/request/request-set-review.dto';
 import { NullReviewException } from './exceptions/null-review.exception';
+import { Transactional } from 'typeorm-transactional';
 
 interface CampingApiResponse {
   response: {
@@ -253,6 +254,7 @@ export class CampinfoService {
     return results;
   }
 
+  @Transactional()
   async addReview(dto: RequestAddReviewDto): Promise<void> {
     const member = await this.memberRepository.findOne({
       where: { email: dto.email },
@@ -296,6 +298,7 @@ export class CampinfoService {
     }
   }
 
+  @Transactional()
   async removeReview(dto: RequestRemoveReviewDto): Promise<void> {
     const deleteReview = await this.reviewRepository.findOne({
       where: { id: dto.id },

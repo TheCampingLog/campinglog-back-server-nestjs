@@ -22,6 +22,10 @@ import { DuplicateEmailException } from '../exceptions/duplicate-email.exception
 import { Review } from 'src/campinfo/entities/review.entity';
 import { ResponseGetMemberActivityDto } from '../dto/response/response-get-member-activity.dto';
 import * as bcrypt from 'bcrypt';
+import {
+  initializeTransactionalContext,
+  StorageDriver,
+} from 'typeorm-transactional';
 
 describe('MemberService 단위테스트', () => {
   let module: TestingModule;
@@ -33,6 +37,8 @@ describe('MemberService 단위테스트', () => {
   let reviewRepository: Repository<Review>;
 
   beforeAll(async () => {
+    initializeTransactionalContext({ storageDriver: StorageDriver.AUTO });
+
     module = await Test.createTestingModule({
       imports: [
         TestTypeOrmModule(),
