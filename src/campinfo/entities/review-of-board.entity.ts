@@ -16,6 +16,10 @@ export class ReviewOfBoard {
     precision: 3,
     scale: 2,
     nullable: false,
+    transformer: {
+      to: (value: number) => value,
+      from: (value: string) => Number(value),
+    },
   })
   reviewAverage: number;
 
