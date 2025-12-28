@@ -43,7 +43,7 @@ export class MemberController {
   //회원 랭킹 조회
   @HttpCode(200)
   @Get('/rank')
-  async getWeeklyRanking(@Query('memberNo') memberNo: number) {
+  async getWeeklyRanking(@Query('memberNo') memberNo: number = 5) {
     return await this.memberService.updateRankWeekly(memberNo);
   }
 
@@ -98,7 +98,7 @@ export class MemberController {
   async getReviews(
     @AccessMember() accessMember: JwtData,
     @Query('pageNo') pageNo: number = 1,
-    @Query('size') size: number,
+    @Query('size') size: number = 4,
   ) {
     return await this.CampinfoService.getMyReviews(
       accessMember.email,
