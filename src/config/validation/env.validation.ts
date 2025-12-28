@@ -22,4 +22,9 @@ export const envValidationSchema = Joi.object({
   DB_SYNCHRONIZE: Joi.boolean().optional(),
   DB_LOGGING: Joi.boolean().optional(),
   DROP_SCHEMA: Joi.boolean().optional(),
+  //카카오 oauth
+  K_CLIENT_ID: Joi.string().required(),
+  K_CLIENT_SECRET: Joi.string().required(),
+  BACKEND_URL: Joi.string().required(),
+  FRONTEND_URL: Joi.string().required(),
 });

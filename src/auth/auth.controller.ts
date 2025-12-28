@@ -22,6 +22,9 @@ import { Member } from './entities/member.entity';
 import { type RefreshData, type JwtData } from './interfaces/jwt.interface';
 import { RefreshAuthGuard } from './passport/refresh-auth.guard';
 import { RefreshMember } from './decorators/refresh-member.decorator';
+import { KakaoAuthGuard } from './passport/kakao-auth.guard';
+import { KakaoMember } from './decorators/kakao-member.decorator';
+import { type KakaoData } from './interfaces/oauth.interface';
 
 @Controller()
 export class AuthController {
@@ -95,6 +98,40 @@ export class AuthController {
     });
 
     return res.json({ message: 'ok' });
+  }
+
+  @Get('/oauth2/authorization/kakao')
+  @UseGuards(KakaoAuthGuard)
+  kakaoLogin() {}
+
+  @UseGuards(KakaoAuthGuard)
+  @Get('/login/oauth2/code/kakao')
+  async kakaoCallback(
+    @KakaoMember() kakaoMember: KakaoData,
+    @Response() res: Express.Response,
+  ) {
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL');
+
+    await this.authService.processKakaoLogin(kakaoMember);
+
+    const accessToken = await this.accessTokenService.generateTokenByEmail(
+      kakaoMember.email as string,
+    );
+
+    const refreshToken = this.refreshTokenService.generateTokenByEmail(
+      kakaoMember.email as string,
+    );
+
+    await this.refreshTokenService.saveRefreshToken(refreshToken);
+
+    res.cookie('s_rt', refreshToken, {
+      httpOnly: true,
+      maxAge: parseInt(
+        this.configService.get<string>('REFRESH_EXPIRATION', '43200000'),
+      ),
+    });
+
+    res.redirect(`${frontendUrl}/oauth/callback?token=` + accessToken);
   }
 
   @UseGuards(AccessAuthGuard)

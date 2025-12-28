@@ -20,6 +20,7 @@ import { ProfileImageNotFoundException } from '../exceptions/profile-image-not-f
 import { PasswordMissMatchException } from '../exceptions/password-miss-match.exception';
 import { InvalidPasswordException } from '../exceptions/invalid-password.exception';
 import { DuplicateEmailException } from '../exceptions/duplicate-email.exception';
+import { Oauth2AuthenticationException } from '../exceptions/oauth2-authentication.exception';
 
 @Catch()
 export class MemberExceptionFilter implements ExceptionFilter {
@@ -50,6 +51,7 @@ export class MemberExceptionFilter implements ExceptionFilter {
     // 계정 생성 리팩토링
     // 마이 페이지 정보 수정
     else if (
+      exception instanceof Oauth2AuthenticationException ||
       exception instanceof DuplicateMemberException ||
       exception instanceof DuplicateNicknameException ||
       exception instanceof DuplicateEmailException ||
