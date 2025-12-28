@@ -7,6 +7,8 @@ import { Member } from './entities/member.entity';
 import * as bcrypt from 'bcrypt';
 import { MemberNotFoundException } from 'src/member/exceptions/member-not-found.exception';
 import { Transactional } from 'typeorm-transactional';
+import { KakaoData } from './interfaces/oauth.interface';
+import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class AuthService {
@@ -36,6 +38,35 @@ export class AuthService {
     await this.memberRepository.save(member);
 
     return { message: 'success' };
+  }
+
+  async processKakaoLogin(kakaoMember: KakaoData): Promise<void> {
+    const member = await this.memberRepository.findOneBy({
+      email: kakaoMember.email,
+    });
+
+    if (!member) {
+      const encryptedPassword = await bcrypt.hash(uuidv4(), 10);
+
+      const memberData: Member = {
+        email: kakaoMember.email as string,
+        password: encryptedPassword,
+        name: kakaoMember.nickname as string,
+        nickname: (kakaoMember.nickname as string) + uuidv4().substring(0, 5),
+        birthday: new Date(),
+        phoneNumber: '010-0000-0000',
+        oauth: true,
+      };
+
+      const savedMember = this.memberRepository.create(memberData);
+
+      await this.memberRepository.save(savedMember);
+    } else {
+      if (!member.oauth) {
+        member.oauth = true;
+        await this.memberRepository.save(member);
+      }
+    }
   }
 
   async validateUser(email: string, password: string): Promise<Member | null> {

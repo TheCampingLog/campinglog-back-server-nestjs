@@ -19,6 +19,7 @@ import {
   initializeTransactionalContext,
   StorageDriver,
 } from 'typeorm-transactional';
+import { KakaoData } from '../interfaces/oauth.interface';
 
 describe('AuthService 단위테스트', () => {
   let authService: AuthService;
@@ -111,5 +112,52 @@ describe('AuthService 단위테스트', () => {
     await expect(authService.deleteMember(invalidMember.email)).rejects.toThrow(
       MemberNotFoundException,
     );
+  });
+
+  // kakao oauth
+  it('카카오 로그인 시 이미 가입되어 있으면 oauth를 true로 변환', async () => {
+    //given
+    const kakaoMember: KakaoData = {
+      email: 'test@example.com',
+      nickname: 'testnickname',
+    };
+    const member = await memberRepository.findOneBy({
+      email: kakaoMember.email,
+    });
+
+    //when
+    await authService.processKakaoLogin(kakaoMember);
+
+    //then
+    const result = await memberRepository.findOneBy({
+      email: kakaoMember.email,
+    });
+
+    expect(member?.oauth).toBe(false);
+    expect(result?.oauth).toBe(true);
+  });
+
+  // kakao oauth
+  it('카카오 로그인 시 가입되어 있지 않으면 회원가입', async () => {
+    //given
+    const kakaoMember: KakaoData = {
+      email: 'kakao@example.com',
+      nickname: 'kakaotestnickname',
+    };
+    const member = await memberRepository.findOneBy({
+      email: kakaoMember.email,
+    });
+
+    //when
+    await authService.processKakaoLogin(kakaoMember);
+
+    //then
+    const result = await memberRepository.findOneBy({
+      email: kakaoMember.email,
+    });
+
+    expect(member).toBe(null);
+    expect(result).toBeInstanceOf(Member);
+    expect(result?.oauth).toBe(true);
   });
 });

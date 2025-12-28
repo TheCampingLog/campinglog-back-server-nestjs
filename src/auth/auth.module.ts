@@ -13,6 +13,7 @@ import { Member } from './entities/member.entity';
 import { RefreshToken } from './entities/refresh-token.entity';
 import { RefreshTokenService } from './jwt/refresh-token.service';
 import { MemberModule } from 'src/member/member.module';
+import { KakaoStrategy } from './passport/kakao.strategy';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { MemberModule } from 'src/member/member.module';
     LocalStrategy,
     AccessStrategy,
     RefreshStrategy,
+    KakaoStrategy,
     JwtConfigService,
     AccessTokenService,
     RefreshTokenService,
