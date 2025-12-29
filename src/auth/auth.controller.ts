@@ -69,7 +69,7 @@ export class AuthController {
       ),
     });
 
-    return res.json({ message: 'login_success' });
+    res.json({ message: 'login_success' });
   }
 
   @UseGuards(RefreshAuthGuard)

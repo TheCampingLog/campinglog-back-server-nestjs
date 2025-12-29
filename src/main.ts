@@ -11,9 +11,17 @@ import helmet from 'helmet';
 async function bootstrap() {
   initializeTransactionalContext({ storageDriver: StorageDriver.AUTO });
 
-  const app = await NestFactory.create(AppModule, { cors: true });
+  const app = await NestFactory.create(AppModule);
   const logger = new Logger('Bootstrap');
   const port = process.env.PORT || 3000;
+
+  app.enableCors({
+    origin: process.env.FRONTEND_URL,
+    credentials: true,
+    exposedHeaders: ['Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  });
 
   const config = new DocumentBuilder()
     .setTitle('CampingLog API')
