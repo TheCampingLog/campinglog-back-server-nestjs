@@ -761,38 +761,38 @@ describe('MemberController (e2e)', () => {
   });
 
   //회원가입 시 이메일 중복 확인
-  it('/api/members/email-availablity (GET) success', async () => {
+  it('/api/members/email-availability (GET) success', async () => {
     await request(app.getHttpServer())
-      .get('/api/members/email-availablity')
+      .get('/api/members/email-availability')
       .query('email=valid@example.com')
       .send()
       .expect(200);
   });
 
   //회원가입 시 이메일 중복 확인
-  it('/api/members/email-availablity (GET) fail', async () => {
+  it('/api/members/email-availability (GET) fail', async () => {
     const member = await createAndSaveMember('test1@example.com');
     await request(app.getHttpServer())
-      .get('/api/members/email-availablity')
+      .get('/api/members/email-availability')
       .query('email=' + member.email)
       .send()
       .expect(400);
   });
 
   //회원가입 시 닉네임 중복 확인
-  it('/api/members/nickname-availablity (GET) success', async () => {
+  it('/api/members/nickname-availability (GET) success', async () => {
     await request(app.getHttpServer())
-      .get('/api/members/nickname-availablity')
+      .get('/api/members/nickname-availability')
       .query('nickname=validnickname')
       .send()
       .expect(200);
   });
 
   //회원가입 시 닉네임 중복 확인
-  it('/api/members/nickname-availablity (GET) fail', async () => {
+  it('/api/members/nickname-availability (GET) fail', async () => {
     const testMember = await createAndSaveMember('test1@example.com');
     await request(app.getHttpServer())
-      .get('/api/members/nickname-availablity')
+      .get('/api/members/nickname-availability')
       .query('nickname=' + testMember.nickname)
       .send()
       .expect(400);
