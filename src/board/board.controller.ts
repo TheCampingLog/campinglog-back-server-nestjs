@@ -20,7 +20,7 @@ import { AccessMember } from 'src/auth/decorators/jwt-member.decorator';
 import { type JwtData } from 'src/auth/interfaces/jwt.interface';
 import { HttpCode } from '@nestjs/common/decorators/http/http-code.decorator';
 import { RequestAddCommentDto } from './dto/request/request-add-comment.dto';
-import { ResponseGetCommentsWrapperDto } from './dto/response/response-get-comments-wrapper.dto';
+import { ResponseGetCommentsWrapper } from './dto/response/response-get-comments-wrapper.dto';
 import { RequestSetCommentDto } from './dto/request/request-set-comment.dto';
 import { ResponseGetLikeDto } from './dto/response/response-get-like.dto';
 import { RequestAddLikeDto } from './dto/request/request-add-like.dto';
@@ -143,7 +143,7 @@ export class BoardController {
     @Param('boardId') boardId: string,
     @Query('page') page: number = 1,
     @Query('size') size: number = 3,
-  ): Promise<ResponseGetCommentsWrapperDto> {
+  ): Promise<ResponseGetCommentsWrapper> {
     return await this.boardService.getComments(boardId, page, size);
   }
 

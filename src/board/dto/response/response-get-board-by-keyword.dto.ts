@@ -8,6 +8,6 @@ export class ResponseGetBoardByKeyword {
   commentCount: number;
   boardImage: string;
   createdAt: string;
-  nickName: string;
+  nickname: string;
   keyword: string;
 }

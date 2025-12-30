@@ -8,5 +8,5 @@ export class ResponseGetBoardByCategory {
   commentCount: number;
   boardImage: string;
   createdAt: string;
-  nickName: string;
+  nickname: string;
 }

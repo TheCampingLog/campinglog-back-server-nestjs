@@ -4,7 +4,7 @@ export class ResponseGetBoardDetailDto {
   title: string;
   content: string;
   categoryName: string;
-  nickName: string;
+  nickname: string;
   viewCount: number;
   likeCount: number;
   commentCount: number;

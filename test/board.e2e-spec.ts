@@ -395,7 +395,7 @@ describe('BoardController (e2e)', () => {
             commentCount: number;
             boardImage: string;
             createdAt: string;
-            nickName: string;
+            nickname: string;
             keyword: string;
           }>;
           totalPages: number;
@@ -423,7 +423,7 @@ describe('BoardController (e2e)', () => {
           expect(firstItem).toHaveProperty('title');
           expect(firstItem.title).toContain('캠핑');
           expect(firstItem).toHaveProperty('categoryName', 'FREE');
-          expect(firstItem).toHaveProperty('nickName', 'searchNick');
+          expect(firstItem).toHaveProperty('nickname', 'searchNick');
           expect(firstItem).toHaveProperty('keyword', '캠핑');
         }
       });
@@ -572,7 +572,7 @@ describe('BoardController (e2e)', () => {
           commentCount: number;
           boardImage: string;
           createdAt: string;
-          nickName: string;
+          nickname: string;
           email: string;
           isLiked: boolean;
         };
@@ -586,7 +586,7 @@ describe('BoardController (e2e)', () => {
         expect(body).toHaveProperty('commentCount', 0);
         expect(body).toHaveProperty('boardImage', 'test-image.jpg');
         expect(body).toHaveProperty('createdAt');
-        expect(body).toHaveProperty('nickName', 'detailNick');
+        expect(body).toHaveProperty('nickname', 'detailNick');
         expect(body).toHaveProperty('email', testEmail);
         expect(body).toHaveProperty('isLiked', false); // userEmail 없으면 false
       });
@@ -755,7 +755,7 @@ describe('BoardController (e2e)', () => {
             commentCount: number;
             boardImage: string;
             createdAt: string;
-            nickName: string;
+            nickname: string;
           }>;
           totalPages: number;
           totalElements: number;
@@ -778,7 +778,7 @@ describe('BoardController (e2e)', () => {
         // 모든 게시글이 FREE 카테고리인지 확인
         body.content.forEach((board) => {
           expect(board.categoryName).toBe('FREE');
-          expect(board.nickName).toBe('categoryNick');
+          expect(board.nickname).toBe('categoryNick');
         });
       });
   });
@@ -1086,23 +1086,26 @@ describe('BoardController (e2e)', () => {
       .expect(200);
 
     const body = res.body as {
-      comments: Array<{
+      content: Array<{
         commentId: string;
         content: string;
         nickname: string;
+        email: string;
         createdAt: string;
       }>;
-      totalElements: number;
+      totalComments: number;
       totalPages: number;
-      currentPage: number;
-      size: number;
+      pageNumber: number;
+      pageSize: number;
+      isFirst: boolean;
+      isLast: boolean;
     };
 
-    expect(body.comments).toHaveLength(3);
-    expect(body.totalElements).toBe(3);
+    expect(body.content).toHaveLength(3);
+    expect(body.totalComments).toBe(3);
     expect(body.totalPages).toBe(1);
-    expect(body.currentPage).toBe(1);
-    expect(body.comments[0].nickname).toBe('commentGetTester');
+    expect(body.pageNumber).toBe(1);
+    expect(body.content[0].nickname).toBe('commentGetTester');
   });
 
   it('/api/boards/:boardId/comments (GET) pagination', async () => {
@@ -1148,22 +1151,25 @@ describe('BoardController (e2e)', () => {
       .expect(200);
 
     const body = res.body as {
-      comments: Array<{
+      content: Array<{
         commentId: string;
         content: string;
         nickname: string;
+        email: string;
         createdAt: string;
       }>;
-      totalElements: number;
+      totalComments: number;
       totalPages: number;
-      currentPage: number;
-      size: number;
+      pageNumber: number;
+      pageSize: number;
+      isFirst: boolean;
+      isLast: boolean;
     };
 
-    expect(body.comments).toHaveLength(2);
-    expect(body.totalElements).toBe(5);
+    expect(body.content).toHaveLength(2);
+    expect(body.totalComments).toBe(5);
     expect(body.totalPages).toBe(3);
-    expect(body.currentPage).toBe(2);
+    expect(body.pageNumber).toBe(2);
   });
 
   it('/api/boards/:boardId/comments (GET) board not found', async () => {

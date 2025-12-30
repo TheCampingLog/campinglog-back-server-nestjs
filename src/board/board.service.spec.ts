@@ -317,7 +317,7 @@ describe('BoardService', () => {
 
     // 최신순 정렬 확인 (board2가 먼저)
     expect(result.content[0].title).toContain('캠핑');
-    expect(result.content[0].nickName).toBe('searcher');
+    expect(result.content[0].nickname).toBe('searcher');
     expect(result.content[0].keyword).toBe('캠핑');
   });
 
@@ -438,7 +438,7 @@ describe('BoardService', () => {
     expect(result.likeCount).toBe(board.likeCount);
     expect(result.commentCount).toBe(board.commentCount);
     expect(result.boardImage).toBe(board.boardImage);
-    expect(result.nickName).toBe(member.nickname);
+    expect(result.nickname).toBe(member.nickname);
     expect(result.email).toBe(member.email);
     expect(result.isLiked).toBe(false); // userEmail 없으면 false
 
@@ -529,7 +529,7 @@ describe('BoardService', () => {
     expect(result).toBeDefined();
     expect(result.isLiked).toBe(false); // 좋아요 안 누름
     expect(result.email).toBe(owner.email); // 작성자 정보
-    expect(result.nickName).toBe(owner.nickname);
+    expect(result.nickname).toBe(owner.nickname);
   });
 
   it('게시글 상세 조회 테스트 - 존재하지 않는 게시글', async () => {
@@ -638,7 +638,7 @@ describe('BoardService', () => {
     // 모든 게시글이 FREE 카테고리인지 확인
     result.content.forEach((board) => {
       expect(board.categoryName).toBe('FREE');
-      expect(board.nickName).toBe('categoryUser');
+      expect(board.nickname).toBe('categoryUser');
     });
 
     // 최신순 정렬 확인 (board2가 나중에 생성되었으므로 먼저 나옴)
@@ -888,13 +888,13 @@ describe('BoardService', () => {
     const result = await service.getComments(board.boardId, 1, 3);
 
     // then
-    expect(result.comments).toHaveLength(2);
-    expect(result.comments[0].content).toBe('두 번째 댓글'); // 최신순
-    expect(result.comments[1].content).toBe('첫 번째 댓글');
-    expect(result.totalElements).toBe(2);
+    expect(result.content).toHaveLength(2);
+    expect(result.content[0].content).toBe('두 번째 댓글'); // 최신순
+    expect(result.content[1].content).toBe('첫 번째 댓글');
+    expect(result.totalComments).toBe(2);
     expect(result.totalPages).toBe(1);
-    expect(result.currentPage).toBe(1);
-    expect(result.size).toBe(3);
+    expect(result.pageNumber).toBe(1);
+    expect(result.pageSize).toBe(3);
   });
 
   it('댓글 조회 - 페이지네이션', async () => {
@@ -932,11 +932,11 @@ describe('BoardService', () => {
     const result = await service.getComments(board.boardId, 2, 2);
 
     // then
-    expect(result.comments).toHaveLength(2);
-    expect(result.totalElements).toBe(5);
+    expect(result.content).toHaveLength(2);
+    expect(result.totalComments).toBe(5);
     expect(result.totalPages).toBe(3);
-    expect(result.currentPage).toBe(2);
-    expect(result.size).toBe(2);
+    expect(result.pageNumber).toBe(2);
+    expect(result.pageSize).toBe(2);
   });
 
   it('댓글 조회 - 존재하지 않는 게시글', async () => {
