@@ -18,7 +18,20 @@ import { RequestUpdateMemberDto } from './dto/request/request-update-member.dto'
 import { RequestSetProfileImageDto } from './dto/request/request-set-profile-image.dto';
 import { ReqeustVerifyPasswordDto } from './dto/request/request-verify-password.dto';
 import { RequestChangePasswordDto } from './dto/request/request-change-password.dto';
-
+import {
+  ApiCreatedResponse,
+  ApiNoContentResponse,
+  ApiOkResponse,
+  ApiQuery,
+  ApiTags,
+} from '@nestjs/swagger';
+import { ResponseGetMemberDto } from './dto/response/response-get-member.dto';
+import { ResponseGetMemberBoardListDto } from './dto/response/response-get-member-board-list.dto';
+import { ResponseGetMemberCommentListDto } from './dto/response/response-get-member-comment-list.dto';
+import { ResponseGetMyReviewWrapper } from 'src/campinfo/dto/response/response-get-my-review-rapper.dto';
+import { ResponseGetMemberProfileImageDto } from './dto/response/response-get-member-profile-image.dto';
+import { ResponseGetMemberActivityDto } from './dto/response/response-get-member-activity.dto';
+@ApiTags('member-rest-controller')
 @Controller('api/members')
 export class MemberController {
   constructor(
@@ -26,13 +39,13 @@ export class MemberController {
     private readonly CampinfoService: CampinfoService,
   ) {}
 
-  @UseGuards(AccessAuthGuard)
-  @Get('/test')
-  test(@AccessMember() accessMember: JwtData) {
-    return accessMember;
-  }
-
   //회원 승급
+  @ApiOkResponse({
+    schema: {
+      type: 'object',
+      additionalProperties: { type: 'number' },
+    },
+  })
   @HttpCode(200)
   @Put('/grade')
   async setMemberGrade() {
@@ -41,6 +54,13 @@ export class MemberController {
   }
 
   //회원 랭킹 조회
+  @ApiOkResponse({
+    schema: {
+      type: 'object',
+      additionalProperties: { type: 'object' },
+    },
+  })
+  @ApiQuery({ name: 'memberNo', required: false, default: 5 })
   @HttpCode(200)
   @Get('/rank')
   async getWeeklyRanking(@Query('memberNo') memberNo: number = 5) {
@@ -48,6 +68,7 @@ export class MemberController {
   }
 
   //마이 페이지 조회
+  @ApiOkResponse({ type: ResponseGetMemberDto })
   @UseGuards(AccessAuthGuard)
   @HttpCode(200)
   @Get('/mypage')
@@ -56,6 +77,12 @@ export class MemberController {
   }
 
   //마이 페이지 정보 수정
+  @ApiNoContentResponse({
+    schema: {
+      type: 'object',
+      additionalProperties: { type: 'string' },
+    },
+  })
   @UseGuards(AccessAuthGuard)
   @HttpCode(204)
   @Put('/mypage')
@@ -70,6 +97,8 @@ export class MemberController {
   }
 
   //내가 쓴 글 조회
+  @ApiOkResponse({ type: ResponseGetMemberBoardListDto })
+  @ApiQuery({ name: 'pageNo', required: false, default: 1 })
   @UseGuards(AccessAuthGuard)
   @HttpCode(200)
   @Get('/mypage/boards')
@@ -81,6 +110,8 @@ export class MemberController {
   }
 
   //내가 작성한 댓글 리스트 조회
+  @ApiOkResponse({ type: ResponseGetMemberCommentListDto })
+  @ApiQuery({ name: 'pageNo', required: false, default: 1 })
   @UseGuards(AccessAuthGuard)
   @HttpCode(200)
   @Get('/mypage/comments')
@@ -92,6 +123,9 @@ export class MemberController {
   }
 
   //내가 작성한 리뷰 리스트 조회
+  @ApiOkResponse({ type: ResponseGetMyReviewWrapper })
+  @ApiQuery({ name: 'pageNo', required: false, default: 1 })
+  @ApiQuery({ name: 'size', required: false, default: 4 })
   @UseGuards(AccessAuthGuard)
   @HttpCode(200)
   @Get('/mypage/reviews')
@@ -107,7 +141,8 @@ export class MemberController {
     );
   }
 
-  //  프로필 사진 조회
+  //프로필 사진 조회
+  @ApiOkResponse({ type: ResponseGetMemberProfileImageDto })
   @UseGuards(AccessAuthGuard)
   @HttpCode(200)
   @Get('/mypage/profile-image')
@@ -116,6 +151,12 @@ export class MemberController {
   }
 
   //프로필 사진 등록
+  @ApiCreatedResponse({
+    schema: {
+      type: 'object',
+      additionalProperties: { type: 'string' },
+    },
+  })
   @UseGuards(AccessAuthGuard)
   @HttpCode(201)
   @Post('/mypage/profile-image')
@@ -130,6 +171,12 @@ export class MemberController {
   }
 
   // 프로필 사진 수정
+  @ApiNoContentResponse({
+    schema: {
+      type: 'object',
+      additionalProperties: { type: 'string' },
+    },
+  })
   @UseGuards(AccessAuthGuard)
   @HttpCode(204)
   @Put('/mypage/profile-image')
@@ -152,6 +199,12 @@ export class MemberController {
   }
 
   // 마이페이지 수정 전 비밀번호 확인
+  @ApiOkResponse({
+    schema: {
+      type: 'object',
+      additionalProperties: { type: 'string' },
+    },
+  })
   @UseGuards(AccessAuthGuard)
   @HttpCode(200)
   @Post('/mypage/password/verify')
@@ -166,6 +219,12 @@ export class MemberController {
   }
 
   // 비밀번호 수정
+  @ApiNoContentResponse({
+    schema: {
+      type: 'object',
+      additionalProperties: { type: 'string' },
+    },
+  })
   @UseGuards(AccessAuthGuard)
   @HttpCode(204)
   @Put('/mypage/password')
@@ -180,6 +239,12 @@ export class MemberController {
   }
 
   // 회원 가입시 이메일 중복 확인
+  @ApiOkResponse({
+    schema: {
+      type: 'object',
+      additionalProperties: { type: 'string' },
+    },
+  })
   @HttpCode(200)
   @Get('/email-availability')
   async checkEmailAvailable(@Query('email') email: string) {
@@ -187,6 +252,12 @@ export class MemberController {
   }
 
   // 회원 가입시 닉네임 중복 확인
+  @ApiOkResponse({
+    schema: {
+      type: 'object',
+      additionalProperties: { type: 'string' },
+    },
+  })
   @HttpCode(200)
   @Get('/nickname-availability')
   async checkNicknameAvailable(@Query('nickname') nickname: string) {
@@ -194,6 +265,7 @@ export class MemberController {
   }
 
   // 내 활동 조회
+  @ApiOkResponse({ type: ResponseGetMemberActivityDto })
   @UseGuards(AccessAuthGuard)
   @HttpCode(200)
   @Get('/mypage/summary')

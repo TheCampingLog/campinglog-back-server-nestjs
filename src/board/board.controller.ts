@@ -25,12 +25,26 @@ import { RequestSetCommentDto } from './dto/request/request-set-comment.dto';
 import { ResponseGetLikeDto } from './dto/response/response-get-like.dto';
 import { RequestAddLikeDto } from './dto/request/request-add-like.dto';
 import { ResponseToggleLikeDto } from './dto/response/response-toggle-like.dto';
+import {
+  ApiCreatedResponse,
+  ApiNoContentResponse,
+  ApiOkResponse,
+  ApiQuery,
+  ApiTags,
+} from '@nestjs/swagger';
 
+@ApiTags('board-rest-controller')
 @Controller('api/boards')
 @UseFilters(BoardExceptionFilter)
 export class BoardController {
   constructor(private readonly boardService: BoardService) {}
 
+  @ApiCreatedResponse({
+    schema: {
+      type: 'object',
+      additionalProperties: { type: 'string' },
+    },
+  })
   @UseGuards(AccessAuthGuard)
   @HttpCode(201)
   @Post()
@@ -46,6 +60,12 @@ export class BoardController {
     };
   }
 
+  @ApiOkResponse({
+    schema: {
+      type: 'object',
+      additionalProperties: { type: 'string' },
+    },
+  })
   @UseGuards(AccessAuthGuard)
   @Put(':boardId')
   @HttpCode(200)
@@ -59,6 +79,8 @@ export class BoardController {
     return { message: '게시글이 수정되었습니다.' };
   }
 
+  @ApiOkResponse({ type: ResponseGetBoardRankDto, isArray: true })
+  @ApiQuery({ name: 'limit', required: false, default: 3 })
   @Get('rank')
   @HttpCode(200)
   async getBoardRank(
@@ -67,6 +89,12 @@ export class BoardController {
     return this.boardService.getBoardRank(limit);
   }
 
+  @ApiNoContentResponse({
+    schema: {
+      type: 'object',
+      additionalProperties: { type: 'string' },
+    },
+  })
   @Delete(':boardId')
   @HttpCode(204)
   async delete(@Param('boardId') boardId: string) {
@@ -74,6 +102,9 @@ export class BoardController {
     return;
   }
 
+  @ApiQuery({ name: 'category', required: false })
+  @ApiQuery({ name: 'page', required: false, default: 1 })
+  @ApiQuery({ name: 'size', required: false, default: 3 })
   @Get('search')
   @HttpCode(200)
   async searchBoards(
@@ -91,6 +122,8 @@ export class BoardController {
     return result;
   }
 
+  @ApiQuery({ name: 'page', required: false, default: 1 })
+  @ApiQuery({ name: 'size', required: false, default: 3 })
   @Get('category')
   @HttpCode(200)
   async getBoardsByCategory(
@@ -119,6 +152,12 @@ export class BoardController {
     return boardDetail;
   }
 
+  @ApiCreatedResponse({
+    schema: {
+      type: 'object',
+      additionalProperties: { type: 'string' },
+    },
+  })
   @UseGuards(AccessAuthGuard)
   @HttpCode(201)
   @Post(':boardId/comment')
@@ -137,6 +176,9 @@ export class BoardController {
     };
   }
 
+  @ApiOkResponse({ type: ResponseGetCommentsWrapperDto })
+  @ApiQuery({ name: 'page', required: false, default: 1 })
+  @ApiQuery({ name: 'size', required: false, default: 3 })
   @Get(':boardId/comments')
   @HttpCode(200)
   async getComments(
@@ -147,6 +189,12 @@ export class BoardController {
     return await this.boardService.getComments(boardId, page, size);
   }
 
+  @ApiOkResponse({
+    schema: {
+      type: 'object',
+      additionalProperties: { type: 'string' },
+    },
+  })
   @UseGuards(AccessAuthGuard)
   @Put(':boardId/comments/:commentId')
   @HttpCode(200)
@@ -166,6 +214,12 @@ export class BoardController {
     };
   }
 
+  @ApiOkResponse({
+    schema: {
+      type: 'object',
+      additionalProperties: { type: 'string' },
+    },
+  })
   @UseGuards(AccessAuthGuard)
   @Delete(':boardId/comments/:commentId')
   @HttpCode(200)
@@ -185,6 +239,7 @@ export class BoardController {
     };
   }
 
+  @ApiOkResponse({ type: ResponseGetLikeDto })
   @Get(':boardId/likes')
   @HttpCode(200)
   async getLikes(
@@ -193,6 +248,7 @@ export class BoardController {
     return await this.boardService.getLikes(boardId);
   }
 
+  @ApiCreatedResponse({ type: ResponseToggleLikeDto })
   @UseGuards(AccessAuthGuard)
   @Post(':boardId/likes')
   @HttpCode(201)
@@ -205,6 +261,7 @@ export class BoardController {
     return await this.boardService.addLike(boardId, dto);
   }
 
+  @ApiOkResponse({ type: ResponseToggleLikeDto })
   @UseGuards(AccessAuthGuard)
   @Delete(':boardId/likes')
   @HttpCode(200)
