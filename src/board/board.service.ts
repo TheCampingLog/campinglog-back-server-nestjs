@@ -17,7 +17,7 @@ import { ResponseGetBoardByCategoryWrapper } from './dto/response/response-get-b
 import { Comment } from './entities/comment.entity';
 import { RequestAddCommentDto } from './dto/request/request-add-comment.dto';
 import { CommentNotFoundException } from './exceptions/comment-not-found.exception';
-import { ResponseGetCommentsWrapperDto } from './dto/response/response-get-comments-wrapper.dto';
+import { ResponseGetCommentsWrapper } from './dto/response/response-get-comments-wrapper.dto';
 import { NotYourCommentException } from './exceptions/not-your-comment.exception';
 import { RequestSetCommentDto } from './dto/request/request-set-comment.dto';
 import { ResponseGetLikeDto } from './dto/response/response-get-like.dto';
@@ -192,7 +192,7 @@ export class BoardService {
       commentCount: board.commentCount,
       boardImage: board.boardImage ?? '',
       createdAt: board.createdAt.toISOString(),
-      nickName: board.member.nickname,
+      nickname: board.member.nickname,
       keyword: keyword,
     }));
 
@@ -241,7 +241,7 @@ export class BoardService {
       commentCount: board.commentCount,
       boardImage: board.boardImage ?? '',
       createdAt: board.createdAt.toISOString(),
-      nickName: board.member.nickname,
+      nickname: board.member.nickname,
       email: board.member.email,
       isLiked: isLiked,
     };
@@ -281,7 +281,7 @@ export class BoardService {
       commentCount: board.commentCount,
       boardImage: board.boardImage ?? '',
       createdAt: board.createdAt.toISOString(),
-      nickName: board.member.nickname,
+      nickname: board.member.nickname,
     }));
 
     const totalPages = Math.ceil(total / size);
@@ -328,7 +328,7 @@ export class BoardService {
     boardId: string,
     page: number,
     size: number,
-  ): Promise<ResponseGetCommentsWrapperDto> {
+  ): Promise<ResponseGetCommentsWrapper> {
     if (page < 1 || size < 1) {
       throw new InvalidBoardRequestException('page>=1, size>=1 이어야 합니다.');
     }
@@ -354,17 +354,20 @@ export class BoardService {
       commentId: comment.commentId,
       content: comment.content,
       nickname: comment.member.nickname,
+      email: comment.member.email,
       createdAt: comment.createdAt,
     }));
 
     const totalPages = Math.ceil(total / size);
 
     return {
-      comments: commentsData,
-      totalElements: total,
+      content: commentsData,
+      totalComments: total,
       totalPages,
-      currentPage: page,
-      size,
+      pageNumber: page,
+      pageSize: size,
+      isFirst: page === 1,
+      isLast: page >= totalPages,
     };
   }
 

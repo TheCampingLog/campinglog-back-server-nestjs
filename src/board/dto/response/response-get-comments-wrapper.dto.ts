@@ -1,9 +1,11 @@
 import { ResponseGetCommentsDto } from './response-get-comments.dto';
 
-export class ResponseGetCommentsWrapperDto {
-  comments: ResponseGetCommentsDto[];
-  totalElements: number;
+export class ResponseGetCommentsWrapper {
+  content: ResponseGetCommentsDto[];
+  totalComments: number;
   totalPages: number;
-  currentPage: number;
-  size: number;
+  pageNumber: number;
+  pageSize: number;
+  isFirst: boolean;
+  isLast: boolean;
 }
