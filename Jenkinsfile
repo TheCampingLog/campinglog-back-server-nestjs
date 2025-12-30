@@ -17,7 +17,7 @@ pipeline {
         // Docker 관련 환경 변수
         DOCKERFILE_PATH = 'Dockerfile'
         DOCKER_NETWORK = 'campinglog-network'  // 선택사항: 네트워크 생성시 사용
-        ENV_FILE = '/dist/config/env/.prod.env'  // 환경 변수 파일
+        ENV_FILE = '/src/config/env/.prod.env'  // 환경 변수 파일
     }
 
     stages {
