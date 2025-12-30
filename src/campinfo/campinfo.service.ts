@@ -201,7 +201,7 @@ export class CampinfoService {
       items,
       page,
       size,
-      hasNext: page + 1 < totalPages,
+      hasNext: page < totalPages,
       totalElement: total,
       totalPages,
     };
