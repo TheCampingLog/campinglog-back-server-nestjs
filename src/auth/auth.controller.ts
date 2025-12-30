@@ -25,7 +25,13 @@ import { RefreshMember } from './decorators/refresh-member.decorator';
 import { KakaoAuthGuard } from './passport/kakao-auth.guard';
 import { KakaoMember } from './decorators/kakao-member.decorator';
 import { type KakaoData } from './interfaces/oauth.interface';
+import {
+  ApiCreatedResponse,
+  ApiNoContentResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 
+@ApiTags('auth-rest-controller')
 @Controller()
 export class AuthController {
   constructor(
@@ -35,12 +41,24 @@ export class AuthController {
     private readonly configService: ConfigService,
   ) {}
 
+  @ApiCreatedResponse({
+    schema: {
+      type: 'object',
+      additionalProperties: { type: 'string' },
+    },
+  })
   @Post('/api/members')
   async create(@Body() requestAddMemberDto: RequestAddMemberDto) {
     return await this.authService.create(requestAddMemberDto);
   }
 
   //회원 탈퇴
+  @ApiNoContentResponse({
+    schema: {
+      type: 'object',
+      additionalProperties: { type: 'string' },
+    },
+  })
   @UseGuards(AccessAuthGuard)
   @HttpCode(204)
   @Delete('/api/members')
@@ -132,16 +150,5 @@ export class AuthController {
     });
 
     res.redirect(`${frontendUrl}/oauth/callback?token=` + accessToken);
-  }
-
-  @UseGuards(AccessAuthGuard)
-  @Get('/api/auth/test')
-  test(@AccessMember() accessMember: JwtData) {
-    return accessMember;
-  }
-
-  @Get('/api/auth/noauth')
-  noauth() {
-    return { messgae: 'noauth' };
   }
 }
