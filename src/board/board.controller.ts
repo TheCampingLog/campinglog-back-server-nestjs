@@ -176,7 +176,7 @@ export class BoardController {
     };
   }
 
-  @ApiOkResponse({ type: ResponseGetCommentsWrapperDto })
+  @ApiOkResponse({ type: ResponseGetCommentsWrapper })
   @ApiQuery({ name: 'page', required: false, default: 1 })
   @ApiQuery({ name: 'size', required: false, default: 3 })
   @Get(':boardId/comments')
